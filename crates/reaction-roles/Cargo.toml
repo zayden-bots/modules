@@ -1,0 +1,10 @@
+[package]
+name = "reaction-roles"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+zayden-core = { workspace = true }
+
+serenity = { workspace = true }
+sqlx = { workspace = true }

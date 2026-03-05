@@ -1,0 +1,16 @@
+[package]
+name = "lfg"
+version = "0.9.0"
+edition = "2024"
+
+[dependencies]
+zayden-core = { workspace = true }
+
+async-trait = { workspace = true }
+jiff = { workspace = true }
+jiff-sqlx = { workspace = true }
+futures = { workspace = true }
+serenity = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

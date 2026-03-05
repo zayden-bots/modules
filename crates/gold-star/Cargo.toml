@@ -1,0 +1,13 @@
+[package]
+name = "gold-star"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zayden-core = { workspace = true }
+
+async-trait = { workspace = true }
+jiff = { workspace = true }
+jiff-sqlx = { workspace = true }
+serenity = { workspace = true }
+sqlx = { workspace = true }

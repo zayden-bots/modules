@@ -1,0 +1,12 @@
+[package]
+name = "ticket"
+version = "0.9.0"
+edition = "2024"
+
+[dependencies]
+zayden-core = { workspace = true }
+
+async-trait = { workspace = true }
+futures = { workspace = true }
+sqlx = { workspace = true, features = ["macros"] }
+serenity = { workspace = true }

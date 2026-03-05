@@ -1,0 +1,177 @@
+use async_trait::async_trait;
+use jiff::tz::TimeZone;
+use jiff_sqlx::{Date, ToSqlx};
+use serenity::all::{
+    Colour, CommandInteraction, Context, CreateCommand, CreateEmbed, EditInteractionResponse,
+    UserId,
+};
+use sqlx::types::Json;
+use sqlx::{Database, FromRow, Pool};
+use tokio::sync::RwLock;
+use zayden_core::{EmojiCacheData, FormatNum};
+
+use crate::{
+    Coins, Error, GamblingGoalsRow, Gems, GoalHandler, GoalsManager, MaxBet, Prestige, Result,
+    START_AMOUNT, tomorrow,
+};
+
+use super::Commands;
+
+#[async_trait]
+pub trait DailyManager<Db: Database> {
+    async fn daily_row(
+        pool: &Pool<Db>,
+        id: impl Into<UserId> + Send,
+    ) -> sqlx::Result<Option<DailyRow>>;
+
+    async fn save(pool: &Pool<Db>, row: DailyRow) -> sqlx::Result<Db::QueryResult>;
+}
+
+#[derive(FromRow)]
+pub struct DailyRow {
+    pub id: i64,
+    pub coins: i64,
+    pub daily: Date,
+    pub prestige: Option<i64>,
+    pub level: Option<i32>,
+    pub goals: Json<Vec<GamblingGoalsRow>>,
+}
+
+impl DailyRow {
+    pub fn new(id: impl Into<UserId>) -> Self {
+        let id = id.into();
+
+        Self {
+            id: id.get() as i64,
+            coins: 0,
+            daily: jiff::civil::Date::default().to_sqlx(),
+            prestige: Some(0),
+            level: Some(0),
+            goals: Json(Vec::new()),
+        }
+    }
+
+    fn user_id(&self) -> UserId {
+        UserId::new(self.id as u64)
+    }
+
+    pub async fn goals<Db: Database, Manager: GoalsManager<Db>>(
+        &mut self,
+        pool: &Pool<Db>,
+    ) -> &[GamblingGoalsRow] {
+        if self.goals.is_empty() || !self.goals[0].is_today() {
+            self.goals = Json(
+                GoalHandler::daily_reset::<Db, Manager>(pool, self.user_id(), self)
+                    .await
+                    .unwrap(),
+            );
+        }
+
+        &self.goals
+    }
+}
+
+impl Coins for DailyRow {
+    fn coins(&self) -> i64 {
+        self.coins
+    }
+
+    fn coins_mut(&mut self) -> &mut i64 {
+        &mut self.coins
+    }
+}
+
+impl Gems for DailyRow {
+    fn gems(&self) -> i64 {
+        todo!()
+    }
+
+    fn gems_mut(&mut self) -> &mut i64 {
+        todo!()
+    }
+}
+
+impl Prestige for DailyRow {
+    fn prestige(&self) -> i64 {
+        self.prestige.unwrap_or_default()
+    }
+}
+
+impl MaxBet for DailyRow {
+    fn level(&self) -> i32 {
+        self.level.unwrap_or_default()
+    }
+}
+
+impl Commands {
+    pub async fn daily<
+        Data: EmojiCacheData,
+        Db: Database,
+        Manager: DailyManager<Db> + GoalsManager<Db>,
+    >(
+        ctx: &Context,
+        interaction: &CommandInteraction,
+        pool: &Pool<Db>,
+    ) -> Result<()> {
+        interaction.defer(&ctx.http).await.unwrap();
+
+        let mut row = Manager::daily_row(pool, interaction.user.id)
+            .await
+            .unwrap()
+            .unwrap_or_else(|| DailyRow::new(interaction.user.id));
+
+        let now = jiff::Timestamp::now();
+        let today = now.to_zoned(TimeZone::UTC).date();
+
+        if row.daily.to_jiff() == today {
+            return Err(Error::DailyClaimed(tomorrow(Some(now))));
+        }
+
+        let amount = START_AMOUNT * (row.prestige.unwrap_or_default() + 1);
+
+        *row.coins_mut() += amount;
+        let goals = row
+            .goals::<Db, Manager>(pool)
+            .await
+            .iter()
+            .map(|goal| {
+                if goal.is_complete() {
+                    format!("\n- ~~{}~~", goal.title())
+                } else {
+                    format!(
+                        "\n- {} (`{}/{}`)",
+                        goal.title(),
+                        goal.progress.format(),
+                        goal.target.format()
+                    )
+                }
+            })
+            .collect::<String>();
+
+        Manager::save(pool, row).await.unwrap();
+
+        let coin = {
+            let data_lock = ctx.data::<RwLock<Data>>();
+            let data = data_lock.read().await;
+            data.emojis().emoji("heads").unwrap()
+        };
+
+        let embed = CreateEmbed::new()
+            .description(format!(
+                "**Collected {} <:coin:{coin}>**\n\n__Daily Goals__: {goals}",
+                amount.format()
+            ))
+            .colour(Colour::GOLD);
+
+        interaction
+            .edit_response(&ctx.http, EditInteractionResponse::new().embed(embed))
+            .await
+            .unwrap();
+
+        Ok(())
+    }
+
+    pub fn register_daily<'a>() -> CreateCommand<'a> {
+        CreateCommand::new("daily").description("Collect your daily coins")
+    }
+}

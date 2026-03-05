@@ -1,0 +1,121 @@
+use std::{fmt, str::FromStr};
+
+use serde::{Deserialize, Serialize};
+use tracing::error;
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum Frame {
+    Rapid,
+    RapidSlug,
+    PinpointSlug,
+    Aggressive,
+    Lightweight,
+    HeavyBurst,
+    Precision,
+    Adaptive,
+    HighImpact,
+    AreaDenial,
+    MicroMissile,
+    DoubleFire,
+    Wave,
+    CompressedWave,
+    Vortex,
+    Caster,
+    AdaptiveBurst,
+    Support,
+    AggressiveBurst,
+    LegacyPR55,
+    TogetherForever,
+    MIDASynergy,
+    HighImpactLongBow,
+    SpreadShot,
+    RocketAssisted,
+    BalancedHeat(u16),
+    DynamicHeat(u16),
+    Disruption,
+    ShotPackage,
+}
+
+impl FromStr for Frame {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Rapid" => Ok(Frame::Rapid),
+            "Rapid Slug" => Ok(Frame::RapidSlug),
+            "Pinpoint Slug" => Ok(Frame::PinpointSlug),
+            "Aggressive" => Ok(Frame::Aggressive),
+            "Lightweight" => Ok(Frame::Lightweight),
+            "Heavy Burst" => Ok(Frame::HeavyBurst),
+            "Precision" => Ok(Frame::Precision),
+            "Adaptive" => Ok(Frame::Adaptive),
+            "High-Impact" => Ok(Frame::HighImpact),
+            "Area Denial" => Ok(Frame::AreaDenial),
+            "Micro-Missile" => Ok(Frame::MicroMissile),
+            "Double Fire" => Ok(Frame::DoubleFire),
+            "Wave" => Ok(Frame::Wave),
+            "Compressed Wave" => Ok(Frame::CompressedWave),
+            "Vortex" => Ok(Frame::Vortex),
+            "Caster" => Ok(Frame::Caster),
+            "Adaptive Burst" => Ok(Frame::AdaptiveBurst),
+            "Support" => Ok(Frame::Support),
+            "Aggressive Burst" => Ok(Frame::AggressiveBurst),
+            "Legacy PR-55" => Ok(Frame::LegacyPR55),
+            "Together Forever" => Ok(Frame::TogetherForever),
+            "MIDA Synergy" => Ok(Frame::MIDASynergy),
+            "High-Impact Longbow" => Ok(Frame::HighImpactLongBow),
+            "Spread Shot" => Ok(Frame::SpreadShot),
+            "Rocket-Assisted" => Ok(Frame::RocketAssisted),
+            "Balanced (260RPM)" => Ok(Frame::BalancedHeat(260)),
+            "Balanced (450RPM)" => Ok(Frame::BalancedHeat(450)),
+            "Balanced (540RPM)" => Ok(Frame::BalancedHeat(540)),
+            "Balanced (900RPM)" => Ok(Frame::BalancedHeat(900)),
+            "Dynamic (140RPM)" => Ok(Frame::DynamicHeat(140)),
+            "Dynamic (180RPM)" => Ok(Frame::DynamicHeat(180)),
+            "Dynamic (360RPM)" => Ok(Frame::DynamicHeat(360)),
+            "Dynamic (540RPM)" => Ok(Frame::DynamicHeat(540)),
+            "Disruption" => Ok(Frame::Disruption),
+            "Shot Package" => Ok(Frame::ShotPackage),
+            _ => {
+                error!("Failed to parse: '{s}'");
+                Err(())
+            }
+        }
+    }
+}
+
+impl fmt::Display for Frame {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Frame::Rapid => write!(f, "Rapid"),
+            Frame::RapidSlug => write!(f, "Rapid Slug"),
+            Frame::PinpointSlug => write!(f, "Pinpoint Slug"),
+            Frame::Aggressive => write!(f, "Aggressive"),
+            Frame::Lightweight => write!(f, "Lightweight"),
+            Frame::HeavyBurst => write!(f, "Heavy Burst"),
+            Frame::Precision => write!(f, "Precision"),
+            Frame::Adaptive => write!(f, "Adaptive"),
+            Frame::HighImpact => write!(f, "High-Impact"),
+            Frame::AreaDenial => write!(f, "Area Denial"),
+            Frame::MicroMissile => write!(f, "Micro-Missile"),
+            Frame::DoubleFire => write!(f, "Double Fire"),
+            Frame::Wave => write!(f, "Wave"),
+            Frame::CompressedWave => write!(f, "Compressed Wave"),
+            Frame::Vortex => write!(f, "Vortex"),
+            Frame::Caster => write!(f, "Caster"),
+            Frame::AdaptiveBurst => write!(f, "Adaptive Burst"),
+            Frame::Support => write!(f, "Support"),
+            Frame::AggressiveBurst => write!(f, "Aggressive Burst"),
+            Frame::LegacyPR55 => write!(f, "Legacy PR-55"),
+            Frame::TogetherForever => write!(f, "Together Forever"),
+            Frame::MIDASynergy => write!(f, "MIDA Synergy"),
+            Frame::HighImpactLongBow => write!(f, "High-Impact Longbow"),
+            Frame::SpreadShot => write!(f, "Spread Shot"),
+            Frame::RocketAssisted => write!(f, "Rocket-Assisted"),
+            Frame::BalancedHeat(rpm) => write!(f, "Balanced Heat ({rpm}RPM)"),
+            Frame::DynamicHeat(rpm) => write!(f, "Dynamic Heat ({rpm}RPM)"),
+            Frame::Disruption => write!(f, "Disruption"),
+            Frame::ShotPackage => write!(f, "Shot Package"),
+        }
+    }
+}

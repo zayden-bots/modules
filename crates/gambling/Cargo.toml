@@ -1,0 +1,28 @@
+[package]
+name = "gambling"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+zayden-core = { workspace = true }
+levels = { workspace = true }
+
+async-trait = { workspace = true }
+jiff = { workspace = true }
+jiff-cron = { workspace = true }
+jiff-sqlx = { workspace = true }
+futures = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+regex = { workspace = true, features = ["unicode-perl"] }
+serde = { workspace = true }
+serenity = { workspace = true, features = [
+  "rustls_backend",
+  "builder",
+  "gateway",
+  "collector",
+
+] }
+sqlx = { workspace = true, features = ["json"] }
+tokio = { workspace = true }
+tracing = { workspace = true }

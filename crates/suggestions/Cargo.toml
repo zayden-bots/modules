@@ -1,0 +1,17 @@
+[package]
+name = "suggestions"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = ["rust-tls"]
+native-tls = ["serenity/native_tls_backend"]
+rust-tls = ["serenity/rustls_backend"]
+
+[dependencies]
+zayden-core = { workspace = true }
+
+async-trait = { workspace = true }
+futures = { workspace = true }
+serenity = { workspace = true }
+sqlx = { workspace = true, features = ["macros"] }

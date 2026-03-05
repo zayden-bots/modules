@@ -1,0 +1,16 @@
+[package]
+name = "levels"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zayden-core = { workspace = true }
+
+async-trait = { workspace = true }
+jiff = { workspace = true }
+jiff-sqlx = { workspace = true }
+futures = { workspace = true }
+rand = { workspace = true }
+serenity = { workspace = true, features = ["collector"] }
+sqlx = { workspace = true }
+tokio = { workspace = true }
