@@ -1,0 +1,312 @@
+use async_trait::async_trait;
+use futures::TryStreamExt;
+use gambling::Commands;
+use gambling::common::leaderboard::{
+    CoinsRow, EggplantsRow, GemsRow, HigherLowerRow, LottoTicketRow, WeeklyHigherLowerRow,
+};
+use gambling::common::{LeaderboardManager, LeaderboardRow};
+use gambling::shop::{EGGPLANT, LOTTO_TICKET};
+use serenity::all::{
+    CommandInteraction, ComponentInteraction, Context, CreateCommand, ResolvedOption, UserId,
+};
+use sqlx::{PgPool, Postgres};
+use zayden_core::{ApplicationCommand, Component};
+
+use crate::{BotState, Error, Result};
+
+const LIMIT: i64 = 10;
+
+pub struct LeaderboardTable;
+
+#[async_trait]
+impl LeaderboardManager<Postgres> for LeaderboardTable {
+    async fn coins(
+        pool: &PgPool,
+        global: bool,
+        users: &[i64],
+        page_num: i64,
+    ) -> sqlx::Result<Vec<LeaderboardRow>> {
+        let offset = (page_num - 1) * LIMIT;
+
+        sqlx::query_file_as!(
+            CoinsRow,
+            "sql/gambling/LeaderboardManager/coins.sql",
+            global,
+            users,
+            LIMIT,
+            offset
+        )
+        .fetch(pool)
+        .map_ok(LeaderboardRow::Coins)
+        .try_collect::<Vec<_>>()
+        .await
+    }
+
+    async fn coins_row_number(
+        pool: &PgPool,
+        global: bool,
+        users: &[i64],
+        id: impl Into<UserId> + Send,
+    ) -> sqlx::Result<Option<i64>> {
+        let user_id = id.into();
+
+        sqlx::query_file_scalar!(
+            "sql/gambling/LeaderboardManager/coins_row_number.sql",
+            global,
+            users,
+            user_id.get() as i64
+        )
+        .fetch_optional(pool)
+        .await
+        .map(|num| num.flatten())
+    }
+
+    async fn gems(
+        pool: &PgPool,
+        global: bool,
+        users: &[i64],
+        page_num: i64,
+    ) -> sqlx::Result<Vec<LeaderboardRow>> {
+        let offset = (page_num - 1) * LIMIT;
+
+        sqlx::query_file_as!(
+            GemsRow,
+            "sql/gambling/LeaderboardManager/gems.sql",
+            global,
+            users,
+            LIMIT,
+            offset
+        )
+        .fetch(pool)
+        .map_ok(LeaderboardRow::Gems)
+        .try_collect::<Vec<_>>()
+        .await
+    }
+
+    async fn gems_row_number(
+        pool: &PgPool,
+        global: bool,
+        users: &[i64],
+        id: impl Into<UserId> + Send,
+    ) -> sqlx::Result<Option<i64>> {
+        let user_id = id.into();
+
+        sqlx::query_file_scalar!(
+            "sql/gambling/LeaderboardManager/gems_row_number.sql",
+            global,
+            users,
+            user_id.get() as i64
+        )
+        .fetch_optional(pool)
+        .await
+        .map(|num| num.flatten())
+    }
+
+    async fn eggplants(
+        pool: &PgPool,
+        global: bool,
+        users: &[i64],
+        page_num: i64,
+    ) -> sqlx::Result<Vec<LeaderboardRow>> {
+        let offset = (page_num - 1) * LIMIT;
+
+        sqlx::query_file_as!(
+            EggplantsRow,
+            "sql/gambling/LeaderboardManager/item.sql",
+            global,
+            users,
+            EGGPLANT.id,
+            LIMIT,
+            offset
+        )
+        .fetch(pool)
+        .map_ok(LeaderboardRow::Eggplants)
+        .try_collect::<Vec<_>>()
+        .await
+    }
+
+    async fn eggplants_row_number(
+        pool: &PgPool,
+        global: bool,
+        users: &[i64],
+        id: impl Into<UserId> + Send,
+    ) -> sqlx::Result<Option<i64>> {
+        let id = id.into();
+
+        sqlx::query_file_scalar!(
+            "sql/gambling/LeaderboardManager/item_row_number.sql",
+            global,
+            users,
+            EGGPLANT.id,
+            id.get() as i64
+        )
+        .fetch_optional(pool)
+        .await
+        .map(|num| num.flatten())
+    }
+
+    async fn lottotickets(
+        pool: &PgPool,
+        global: bool,
+        users: &[i64],
+        page_num: i64,
+    ) -> sqlx::Result<Vec<LeaderboardRow>> {
+        let offset = (page_num - 1) * LIMIT;
+
+        sqlx::query_file_as!(
+            LottoTicketRow,
+            "sql/gambling/LeaderboardManager/item.sql",
+            global,
+            users,
+            LOTTO_TICKET.id,
+            LIMIT,
+            offset
+        )
+        .fetch(pool)
+        .map_ok(LeaderboardRow::LottoTickets)
+        .try_collect::<Vec<_>>()
+        .await
+    }
+
+    async fn lottotickets_row_number(
+        pool: &PgPool,
+        global: bool,
+        users: &[i64],
+        id: impl Into<UserId> + Send,
+    ) -> sqlx::Result<Option<i64>> {
+        let id = id.into();
+
+        sqlx::query_file_scalar!(
+            "sql/gambling/LeaderboardManager/item_row_number.sql",
+            global,
+            users,
+            LOTTO_TICKET.id,
+            id.get() as i64
+        )
+        .fetch_optional(pool)
+        .await
+        .map(|num| num.flatten())
+    }
+
+    async fn higherlower(
+        pool: &PgPool,
+        global: bool,
+        users: &[i64],
+        page_num: i64,
+    ) -> sqlx::Result<Vec<LeaderboardRow>> {
+        let offset = (page_num - 1) * LIMIT;
+
+        sqlx::query_file_as!(
+            HigherLowerRow,
+            "sql/gambling/LeaderboardManager/higherlower.sql",
+            global,
+            users,
+            LIMIT,
+            offset
+        )
+        .fetch(pool)
+        .map_ok(LeaderboardRow::HigherLower)
+        .try_collect::<Vec<_>>()
+        .await
+    }
+
+    async fn higherlower_row_number(
+        pool: &PgPool,
+        global: bool,
+        users: &[i64],
+        id: impl Into<UserId> + Send,
+    ) -> sqlx::Result<Option<i64>> {
+        let id = id.into();
+
+        sqlx::query_file_scalar!(
+            "sql/gambling/LeaderboardManager/higherlower_row_number.sql",
+            global,
+            users,
+            id.get() as i64
+        )
+        .fetch_optional(pool)
+        .await
+        .map(|num| num.flatten())
+    }
+
+    async fn weekly_higherlower(
+        pool: &PgPool,
+        global: bool,
+        users: &[i64],
+        page_num: i64,
+    ) -> sqlx::Result<Vec<LeaderboardRow>> {
+        let offset = (page_num - 1) * LIMIT;
+
+        sqlx::query_file_as!(
+            WeeklyHigherLowerRow,
+            "sql/gambling/LeaderboardManager/weekly_higherlower.sql",
+            global,
+            users,
+            LIMIT,
+            offset
+        )
+        .fetch(pool)
+        .map_ok(LeaderboardRow::WeeklyHigherLower)
+        .try_collect::<Vec<_>>()
+        .await
+    }
+
+    async fn weekly_higherlower_row_number(
+        pool: &PgPool,
+        global: bool,
+        users: &[i64],
+        id: impl Into<UserId> + Send,
+    ) -> sqlx::Result<Option<i64>> {
+        let id = id.into();
+
+        sqlx::query_file_scalar!(
+            "sql/gambling/LeaderboardManager/weekly_higherlower_row_number.sql",
+            global,
+            users,
+            id.get() as i64
+        )
+        .fetch_optional(pool)
+        .await
+        .map(|num| num.flatten())
+    }
+}
+
+pub struct Leaderboard;
+
+#[async_trait]
+impl ApplicationCommand<Error, Postgres> for Leaderboard {
+    async fn run(
+        &self,
+        ctx: &Context,
+        interaction: &CommandInteraction,
+        options: Vec<ResolvedOption<'_>>,
+        pool: &PgPool,
+    ) -> Result<()> {
+        Commands::leaderboard::<BotState, Postgres, LeaderboardTable>(
+            ctx,
+            interaction,
+            options,
+            pool,
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    fn command(&self) -> CreateCommand<'_> {
+        Commands::register_leaderboard()
+    }
+}
+
+#[async_trait]
+impl Component<Error, Postgres> for Leaderboard {
+    async fn run(ctx: &Context, interaction: &ComponentInteraction, pool: &PgPool) -> Result<()> {
+        gambling::Leaderboard::run_component::<BotState, Postgres, LeaderboardTable>(
+            ctx,
+            interaction,
+            pool,
+        )
+        .await
+        .map_err(Error::from)
+    }
+}
