@@ -1,20 +1,21 @@
-pub mod arc;
+pub(super) mod arc;
 mod armour;
-pub mod prismatic;
-pub mod solar;
-pub mod stasis;
-pub mod strand;
-pub mod void;
+pub(super) mod prismatic;
+pub(super) mod solar;
+pub(super) mod stasis;
+pub(super) mod strand;
+pub(super) mod void;
 
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
-pub use armour::{Gauntlets, Greaves, Helmet, Mark, Plate};
+pub(super) use armour::{Gauntlets, Greaves, Helmet, Mark, Plate};
 
-use super::{Abilities, Aspect, Subclass as SubclassTrait};
+use super::{Abilities, Aspect, Subclass as SubclassTrait, box_aspect};
 
+#[expect(dead_code, reason = "reserved for future loadout builds")]
 #[derive(Clone, Copy)]
-pub enum Subclass {
+pub(super) enum Subclass {
     Prismatic { abilities: prismatic::Abilities, aspects: [prismatic::Aspect; 2] },
     Arc { abilities: arc::Abilities, aspects: [arc::Aspect; 2] },
     Solar { abilities: solar::Abilities, aspects: [solar::Aspect; 2] },
@@ -37,24 +38,12 @@ impl SubclassTrait for Subclass {
 
     fn aspects(&self) -> [Box<dyn Aspect>; 2] {
         match self {
-            Self::Prismatic { aspects, .. } => {
-                aspects.map(|a| Box::new(a) as Box<dyn Aspect>)
-            },
-            Self::Arc { aspects, .. } => {
-                aspects.map(|a| Box::new(a) as Box<dyn Aspect>)
-            },
-            Self::Solar { aspects, .. } => {
-                aspects.map(|a| Box::new(a) as Box<dyn Aspect>)
-            },
-            Self::Void { aspects, .. } => {
-                aspects.map(|a| Box::new(a) as Box<dyn Aspect>)
-            },
-            Self::Stasis { aspects, .. } => {
-                aspects.map(|a| Box::new(a) as Box<dyn Aspect>)
-            },
-            Self::Strand { aspects, .. } => {
-                aspects.map(|a| Box::new(a) as Box<dyn Aspect>)
-            },
+            Self::Prismatic { aspects, .. } => aspects.map(box_aspect),
+            Self::Arc { aspects, .. } => aspects.map(box_aspect),
+            Self::Solar { aspects, .. } => aspects.map(box_aspect),
+            Self::Void { aspects, .. } => aspects.map(box_aspect),
+            Self::Stasis { aspects, .. } => aspects.map(box_aspect),
+            Self::Strand { aspects, .. } => aspects.map(box_aspect),
         }
     }
 }
@@ -74,8 +63,9 @@ impl Display for Subclass {
     }
 }
 
+#[expect(dead_code, reason = "reserved for future loadout builds")]
 #[derive(Clone, Copy)]
-pub enum ClassAbility {
+pub(super) enum ClassAbility {
     ToweringBarricade,
     RallyBarricade,
     Thruster,
@@ -93,19 +83,20 @@ impl Display for ClassAbility {
     }
 }
 
+#[expect(dead_code, reason = "reserved for future loadout builds")]
 #[derive(Clone, Copy)]
-pub enum Jump {
-    HighLift,
-    StrafeLift,
-    CatapultLift,
+pub(super) enum Jump {
+    High,
+    Strafe,
+    Catapult,
 }
 
 impl Display for Jump {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let name = match self {
-            Self::HighLift => "high_lift",
-            Self::StrafeLift => "strafe_lift",
-            Self::CatapultLift => "catapult_lift",
+            Self::High => "high_lift",
+            Self::Strafe => "strafe_lift",
+            Self::Catapult => "catapult_lift",
         };
 
         write!(f, "{name}")

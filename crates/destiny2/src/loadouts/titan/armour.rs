@@ -10,6 +10,7 @@ use super::super::{
     ClassItemMod,
     HelmetMod,
     LegsMod,
+    box_display,
 };
 
 #[derive(Clone, Copy)]
@@ -20,7 +21,7 @@ pub enum Helmet {
 impl ArmourItem for Helmet {
     fn mods(&self) -> [Box<dyn Display>; 3] {
         match self {
-            Self::Any(mods) => mods.map(|m| Box::new(m) as Box<dyn Display>),
+            Self::Any(mods) => mods.map(box_display),
         }
     }
 
@@ -54,9 +55,7 @@ pub enum Gauntlets {
 impl ArmourItem for Gauntlets {
     fn mods(&self) -> [Box<dyn Display>; 3] {
         match self {
-            Self::Any(mods) | Self::AshenWake(mods) => {
-                mods.map(|m| Box::new(m) as Box<dyn Display>)
-            },
+            Self::Any(mods) | Self::AshenWake(mods) => mods.map(box_display),
         }
     }
 
@@ -94,9 +93,8 @@ pub enum Plate {
 impl ArmourItem for Plate {
     fn mods(&self) -> [Box<dyn Display>; 3] {
         match self {
-            Self::Any(mods) => mods.map(|m| Box::new(m) as Box<dyn Display>),
-            Self::HeartOfInmostLight(mods) => {
-                mods.map(|m| Box::new(m) as Box<dyn Display>)
+            Self::Any(mods) | Self::HeartOfInmostLight(mods) => {
+                mods.map(box_display)
             },
         }
     }
@@ -135,9 +133,7 @@ pub enum Greaves {
 impl ArmourItem for Greaves {
     fn mods(&self) -> [Box<dyn Display>; 3] {
         match self {
-            Self::Any(mods) | Self::PeregrineGreaves(mods) => {
-                mods.map(|m| Box::new(m) as Box<dyn Display>)
-            },
+            Self::Any(mods) | Self::PeregrineGreaves(mods) => mods.map(box_display),
         }
     }
 
@@ -174,7 +170,7 @@ pub enum Mark {
 impl ArmourItem for Mark {
     fn mods(&self) -> [Box<dyn Display>; 3] {
         match self {
-            Self::Any(mods) => mods.map(|m| Box::new(m) as Box<dyn Display>),
+            Self::Any(mods) => mods.map(box_display),
         }
     }
 
