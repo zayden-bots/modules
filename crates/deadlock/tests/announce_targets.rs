@@ -4,13 +4,13 @@ use sqlx::PgPool;
 const ZAYDEN: i64 = 1000;
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("announce_targets"))]
-async fn targets_exclude_disabled_absent_and_custom_served_guilds(pool: PgPool) {
+async fn targets_exclude_disabled_and_absent_guilds(pool: PgPool) {
     let rows = targets(&pool, ZAYDEN, "zayden").await.unwrap();
 
     let mut guilds: Vec<i64> = rows.iter().map(|row| row.guild_id).collect();
     guilds.sort_unstable();
 
-    assert_eq!(guilds, vec![1, 2]);
+    assert_eq!(guilds, vec![1, 2, 6]);
 }
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("announce_targets"))]
@@ -28,10 +28,9 @@ async fn a_switch_for_another_application_is_ignored(pool: PgPool) {
 }
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("announce_targets"))]
-async fn the_custom_application_serves_its_guild(pool: PgPool) {
-    let rows = targets(&pool, 2000, "zayden").await.unwrap();
+async fn a_custom_seat_bots_switch_decides(pool: PgPool) {
+    let rows = targets(&pool, ZAYDEN, "zayden").await.unwrap();
 
-    let guilds: Vec<i64> = rows.iter().map(|row| row.guild_id).collect();
-
-    assert_eq!(guilds, vec![6]);
+    assert!(rows.iter().any(|row| row.guild_id == 6));
+    assert!(!rows.iter().any(|row| row.guild_id == 7));
 }

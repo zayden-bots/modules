@@ -74,7 +74,7 @@ pub async fn targets_for(
         WHERE NOT EXISTS (
                 SELECT 1 FROM guild_app_modules gm
                 WHERE gm.guild_id = c.guild_id
-                  AND gm.application_id = $2
+                  AND gm.application_id = COALESCE(serving_application(c.guild_id, $3), $2)
                   AND gm.module = 'deadlock'
                   AND NOT gm.enabled
             )
@@ -84,7 +84,6 @@ pub async fn targets_for(
                   AND p.application_id = $2
                   AND p.left_at IS NULL
             )
-          AND serving_application(c.guild_id, $3) = $2
         ORDER BY c.guild_id
         "#,
         discord_id,

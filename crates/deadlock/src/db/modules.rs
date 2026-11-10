@@ -13,11 +13,10 @@ pub async fn enabled_guilds(
         WHERE p.guild_id = ANY($1)
           AND p.application_id = $2
           AND p.left_at IS NULL
-          AND serving_application(p.guild_id, $3) = $2
           AND NOT EXISTS (
                 SELECT 1 FROM guild_app_modules m
                 WHERE m.guild_id = p.guild_id
-                  AND m.application_id = $2
+                  AND m.application_id = COALESCE(serving_application(p.guild_id, $3), $2)
                   AND m.module = 'deadlock'
                   AND NOT m.enabled
             )

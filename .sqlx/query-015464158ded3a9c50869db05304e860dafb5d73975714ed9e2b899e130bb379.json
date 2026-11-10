@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT c.guild_id, c.channel_id, c.leaderboard, c.leaderboard_message_id\n        FROM deadlock_squad_channel c\n        WHERE c.leaderboard\n          AND NOT EXISTS (\n                SELECT 1 FROM guild_app_modules gm\n                WHERE gm.guild_id = c.guild_id\n                  AND gm.application_id = $1\n                  AND gm.module = 'deadlock'\n                  AND NOT gm.enabled\n            )\n          AND EXISTS (\n                SELECT 1 FROM guild_presence p\n                WHERE p.guild_id = c.guild_id\n                  AND p.application_id = $1\n                  AND p.left_at IS NULL\n            )\n          AND serving_application(c.guild_id, $2) = $1\n        ORDER BY c.guild_id\n        ",
+  "query": "\n        SELECT c.guild_id, c.channel_id, c.leaderboard, c.leaderboard_message_id\n        FROM deadlock_squad_channel c\n        WHERE c.leaderboard\n          AND NOT EXISTS (\n                SELECT 1 FROM guild_app_modules gm\n                WHERE gm.guild_id = c.guild_id\n                  AND gm.application_id = COALESCE(serving_application(c.guild_id, $2), $1)\n                  AND gm.module = 'deadlock'\n                  AND NOT gm.enabled\n            )\n          AND EXISTS (\n                SELECT 1 FROM guild_presence p\n                WHERE p.guild_id = c.guild_id\n                  AND p.application_id = $1\n                  AND p.left_at IS NULL\n            )\n        ORDER BY c.guild_id\n        ",
   "describe": {
     "columns": [
       {
@@ -61,5 +61,5 @@
       true
     ]
   },
-  "hash": "441a97f93c26afaee5cab7dc9036c6665db0184aa74cf21aab237397586c2233"
+  "hash": "015464158ded3a9c50869db05304e860dafb5d73975714ed9e2b899e130bb379"
 }

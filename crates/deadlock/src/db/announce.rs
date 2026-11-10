@@ -138,7 +138,7 @@ pub async fn targets(
         WHERE NOT EXISTS (
                 SELECT 1 FROM guild_app_modules m
                 WHERE m.guild_id = a.guild_id
-                  AND m.application_id = $1
+                  AND m.application_id = COALESCE(serving_application(a.guild_id, $2), $1)
                   AND m.module = 'deadlock'
                   AND NOT m.enabled
             )
@@ -148,7 +148,6 @@ pub async fn targets(
                   AND p.application_id = $1
                   AND p.left_at IS NULL
             )
-          AND serving_application(a.guild_id, $2) = $1
         "#,
         application_id,
         slot

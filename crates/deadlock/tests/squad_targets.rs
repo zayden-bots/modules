@@ -17,7 +17,7 @@ async fn targets_need_squad_membership_a_presence_and_the_module(pool: PgPool) {
     let guilds: Vec<(i64, i64)> =
         targets.iter().map(|target| (target.guild_id, target.channel_id)).collect();
 
-    assert_eq!(guilds, vec![(1, 101), (2, 102)]);
+    assert_eq!(guilds, vec![(1, 101), (2, 102), (6, 106)]);
 }
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("squad_targets"))]
@@ -44,7 +44,7 @@ async fn leaderboards_go_only_to_gated_guilds_with_the_toggle_on(pool: PgPool) {
         .map(|row| row.guild_id)
         .collect();
 
-    assert_eq!(guilds, vec![1, 4]);
+    assert_eq!(guilds, vec![1, 4, 6]);
 }
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("squad_targets"))]

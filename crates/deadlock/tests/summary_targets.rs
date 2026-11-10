@@ -12,7 +12,7 @@ async fn targets_need_a_channel_an_opt_in_presence_and_the_module(pool: PgPool) 
     let guilds: Vec<(i64, i64)> =
         targets.iter().map(|target| (target.guild_id, target.channel_id)).collect();
 
-    assert_eq!(guilds, vec![(1, 101), (2, 102)]);
+    assert_eq!(guilds, vec![(1, 101), (2, 102), (6, 106)]);
 }
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("summary_targets"))]
@@ -45,7 +45,7 @@ async fn enabled_guilds_filter_by_presence_and_module(pool: PgPool) {
     let enabled =
         enabled_guilds(&pool, &[1, 2, 3, 5, 6, 99], ZAYDEN, "zayden").await.unwrap();
 
-    assert_eq!(enabled, vec![1, 2]);
+    assert_eq!(enabled, vec![1, 2, 6]);
     assert_eq!(
         enabled_guilds(&pool, &[], ZAYDEN, "zayden").await.unwrap(),
         Vec::<i64>::new()
