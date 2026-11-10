@@ -6,7 +6,7 @@ use jiff::Timestamp;
 use serenity::all::Http;
 use sqlx::PgPool;
 use tracing::{debug, error, info, warn};
-use zayden_core::CronJob;
+use zayden_core::{CronJob, Identity};
 
 use crate::announce::announce_ready;
 use crate::briefing::{self, BriefingOutcome};
@@ -45,7 +45,7 @@ pub struct DeadlockPatchCron;
 impl DeadlockPatchCron {
     pub fn cron_job(
         api: Arc<DeadlockApi>,
-        application_id: u64,
+        me: Identity,
     ) -> Result<CronJob, jiff_cron::error::Error> {
         let guard = Arc::new(RunGuard::default());
 
@@ -62,7 +62,8 @@ impl DeadlockPatchCron {
                             ticket,
                             Arc::clone(&ctx.http),
                             pool,
-                            application_id.cast_signed(),
+                            me.application_i64(),
+                            me.slot.as_str(),
                         ));
                     }
                 }
@@ -76,8 +77,9 @@ async fn announce(
     http: Arc<Http>,
     pool: PgPool,
     application_id: i64,
+    slot: &'static str,
 ) {
-    if let Err(e) = announce_ready(&http, &pool, application_id).await {
+    if let Err(e) = announce_ready(&http, &pool, application_id, slot).await {
         error!(error = ?e, "deadlock: failed to announce patches");
     }
 }
@@ -87,7 +89,7 @@ pub struct DeadlockMatchCron;
 impl DeadlockMatchCron {
     pub fn cron_job(
         api: Arc<DeadlockApi>,
-        application_id: u64,
+        me: Identity,
     ) -> Result<CronJob, jiff_cron::error::Error> {
         let guard = Arc::new(RunGuard::default());
 
@@ -111,7 +113,8 @@ impl DeadlockMatchCron {
                                     Arc::clone(&ctx.http),
                                     pool,
                                     api,
-                                    application_id.cast_signed(),
+                                    me.application_i64(),
+                                    me.slot.as_str(),
                                     jobs,
                                 ));
                             }
@@ -138,9 +141,10 @@ async fn summarize(
     pool: PgPool,
     api: Arc<DeadlockApi>,
     application_id: i64,
+    slot: &'static str,
     jobs: Vec<SummaryJob>,
 ) {
-    match deliver(&http, &pool, &api, application_id, jobs).await {
+    match deliver(&http, &pool, &api, application_id, slot, jobs).await {
         Ok(outcome) => debug!(?outcome, "deadlock: match summaries delivered"),
         Err(e) => error!(error = ?e, "deadlock: failed to deliver match summaries"),
     }
@@ -151,7 +155,7 @@ pub struct DeadlockRankCron;
 impl DeadlockRankCron {
     pub fn cron_job(
         api: Arc<DeadlockApi>,
-        application_id: u64,
+        me: Identity,
     ) -> Result<CronJob, jiff_cron::error::Error> {
         let guard = Arc::new(RunGuard::default());
 
@@ -175,7 +179,8 @@ impl DeadlockRankCron {
                                     Arc::clone(&ctx.http),
                                     pool,
                                     api,
-                                    application_id.cast_signed(),
+                                    me.application_i64(),
+                                    me.slot.as_str(),
                                     events,
                                 ));
                             }
@@ -202,9 +207,12 @@ async fn announce_squad(
     pool: PgPool,
     api: Arc<DeadlockApi>,
     application_id: i64,
+    slot: &'static str,
     events: Vec<SquadEvent>,
 ) {
-    match squad_deliver::deliver(&http, &pool, &api, application_id, events).await {
+    match squad_deliver::deliver(&http, &pool, &api, application_id, slot, events)
+        .await
+    {
         Ok(posts) => debug!(posts, "deadlock: squad events delivered"),
         Err(e) => error!(error = ?e, "deadlock: failed to deliver squad events"),
     }
@@ -215,7 +223,7 @@ pub struct DeadlockLeaderboardCron;
 impl DeadlockLeaderboardCron {
     pub fn cron_job(
         api: Arc<DeadlockApi>,
-        application_id: u64,
+        me: Identity,
     ) -> Result<CronJob, jiff_cron::error::Error> {
         let guard = Arc::new(RunGuard::default());
 
@@ -231,7 +239,8 @@ impl DeadlockLeaderboardCron {
                             Arc::clone(&ctx.http),
                             pool,
                             api,
-                            application_id.cast_signed(),
+                            me.application_i64(),
+                            me.slot.as_str(),
                         ));
                     }
                 }
@@ -246,8 +255,10 @@ async fn post_leaderboards(
     pool: PgPool,
     api: Arc<DeadlockApi>,
     application_id: i64,
+    slot: &'static str,
 ) {
-    match squad_deliver::post_leaderboards(&http, &pool, &api, application_id).await
+    match squad_deliver::post_leaderboards(&http, &pool, &api, application_id, slot)
+        .await
     {
         Ok(posts) => debug!(posts, "deadlock: squad leaderboards posted"),
         Err(e) => error!(error = ?e, "deadlock: failed to post squad leaderboards"),

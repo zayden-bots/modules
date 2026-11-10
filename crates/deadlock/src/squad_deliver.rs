@@ -63,6 +63,7 @@ pub async fn deliver(
     pool: &PgPool,
     api: &DeadlockApi,
     application_id: i64,
+    slot: &str,
     events: Vec<SquadEvent>,
 ) -> Result<usize> {
     let mut targets: HashMap<i64, Vec<SquadTarget>> = HashMap::new();
@@ -72,8 +73,13 @@ pub async fn deliver(
         let found = match targets.entry(event.discord_id) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => entry.insert(
-                squad_channel::targets_for(pool, event.discord_id, application_id)
-                    .await?,
+                squad_channel::targets_for(
+                    pool,
+                    event.discord_id,
+                    application_id,
+                    slot,
+                )
+                .await?,
             ),
         };
 
@@ -115,8 +121,10 @@ pub async fn post_leaderboards(
     pool: &PgPool,
     api: &DeadlockApi,
     application_id: i64,
+    slot: &str,
 ) -> Result<usize> {
-    let guilds = squad_channel::leaderboard_guilds(pool, application_id).await?;
+    let guilds =
+        squad_channel::leaderboard_guilds(pool, application_id, slot).await?;
     if guilds.is_empty() {
         return Ok(0);
     }

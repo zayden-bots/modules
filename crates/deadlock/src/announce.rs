@@ -56,13 +56,14 @@ pub async fn announce_ready(
     http: &Http,
     pool: &PgPool,
     application_id: i64,
+    slot: &str,
 ) -> Result<usize> {
     let ready = patches::ready(pool).await?;
     if ready.is_empty() {
         return Ok(0);
     }
 
-    let targets = announce::targets(pool, application_id).await?;
+    let targets = announce::targets(pool, application_id, slot).await?;
 
     for patch in &ready {
         let posts: Vec<_> =

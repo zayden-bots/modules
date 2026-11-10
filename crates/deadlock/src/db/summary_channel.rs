@@ -60,6 +60,7 @@ pub async fn targets_for(
     pool: &PgPool,
     discord_id: i64,
     application_id: i64,
+    slot: &str,
 ) -> sqlx::Result<Vec<SummaryTarget>> {
     sqlx::query_as!(
         SummaryTarget,
@@ -71,8 +72,9 @@ pub async fn targets_for(
          AND m.discord_id = $1
          AND m.share_summaries
         WHERE NOT EXISTS (
-                SELECT 1 FROM guild_modules gm
+                SELECT 1 FROM guild_app_modules gm
                 WHERE gm.guild_id = c.guild_id
+                  AND gm.application_id = $2
                   AND gm.module = 'deadlock'
                   AND NOT gm.enabled
             )
@@ -82,11 +84,12 @@ pub async fn targets_for(
                   AND p.application_id = $2
                   AND p.left_at IS NULL
             )
-          AND serving_application(c.guild_id) IS NULL
+          AND serving_application(c.guild_id, $3) = $2
         ORDER BY c.guild_id
         "#,
         discord_id,
-        application_id
+        application_id,
+        slot
     )
     .fetch_all(pool)
     .await

@@ -13,20 +13,27 @@ INSERT INTO guild_presence (guild_id, application_id, left_at)
         -- Zayden left guild 5.
         (5, 1000, now()),
         (6, 1000, NULL),
+        -- The custom bot is also in guild 1, which it does not serve.
+        (1, 2000, NULL),
         (6, 2000, NULL);
 
-INSERT INTO guild_modules (guild_id, module, enabled)
+INSERT INTO guild_app_modules (guild_id, application_id, module, enabled)
     VALUES
         -- Switched on explicitly.
-        (2, 'deadlock', TRUE),
+        (2, 1000, 'deadlock', TRUE),
         -- Switched off.
-        (3, 'deadlock', FALSE);
+        (3, 1000, 'deadlock', FALSE),
+        -- Another application switched it off in guild 1.
+        (1, 3000, 'deadlock', FALSE);
 
-INSERT INTO custom_bots (application_id, bot_user_id, name, public_key, token_ct, token_nonce, key_id, registered_by)
-    VALUES (2000, 2001, 'Custom', 'key', '\x00'::bytea, '\x00'::bytea, 1, 1);
+INSERT INTO applications (application_id, slot, kind, bot_user_id, name)
+    VALUES (1000, 'zayden', 'default', 1001, 'Zayden');
 
-INSERT INTO custom_bot_guilds (guild_id, application_id, attached_by)
-    VALUES (6, 2000, 1);
+INSERT INTO applications (application_id, slot, kind, bot_user_id, name, public_key, token_ct, token_nonce, key_id, registered_by)
+    VALUES (2000, 'zayden', 'custom', 2001, 'Custom', 'key', '\x00'::bytea, '\x00'::bytea, 1, 1);
+
+INSERT INTO application_guilds (guild_id, slot, application_id, attached_by)
+    VALUES (6, 'zayden', 2000, 1);
 
 INSERT INTO entitlements (provider, external_id, scope_type, scope_id, tier)
     VALUES ('test', 'guild-6', 'guild', 6, 'ultra');

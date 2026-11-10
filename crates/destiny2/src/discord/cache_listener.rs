@@ -23,7 +23,7 @@ pub fn spawn_cache_listener(app: Arc<AppState>) {
                 },
                 Ok(
                     AppEvent::ConfigChanged(_)
-                    | AppEvent::ModulesChanged(_)
+                    | AppEvent::ModulesChanged { .. }
                     | AppEvent::EntitlementChanged(_)
                     | AppEvent::PatreonPost(_)
                     | AppEvent::YoutubeUpload(_)

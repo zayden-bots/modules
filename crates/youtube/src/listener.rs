@@ -36,7 +36,7 @@ pub(crate) fn spawn_youtube_listener(
                 },
                 Ok(
                     AppEvent::ConfigChanged(_)
-                    | AppEvent::ModulesChanged(_)
+                    | AppEvent::ModulesChanged { .. }
                     | AppEvent::EntitlementChanged(_)
                     | AppEvent::PatreonPost(_)
                     | AppEvent::HostingPaid(_)

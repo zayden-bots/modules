@@ -31,6 +31,7 @@ pub async fn deliver(
     pool: &PgPool,
     api: &DeadlockApi,
     application_id: i64,
+    slot: &str,
     jobs: Vec<SummaryJob>,
 ) -> Result<DeliveryOutcome> {
     let heroes = match api.heroes(None, Priority::Background).await {
@@ -50,7 +51,8 @@ pub async fn deliver(
 
     let dms = send_dms(http, pool, &jobs, &heroes, &items).await?;
     let posts =
-        post_to_guilds(http, pool, application_id, &jobs, &heroes, &items).await?;
+        post_to_guilds(http, pool, application_id, slot, &jobs, &heroes, &items)
+            .await?;
 
     Ok(DeliveryOutcome { dms, posts })
 }
@@ -98,6 +100,7 @@ async fn post_to_guilds(
     http: &Http,
     pool: &PgPool,
     application_id: i64,
+    slot: &str,
     jobs: &[SummaryJob],
     heroes: &HeroIndex,
     items: &ItemIndex,
@@ -113,9 +116,13 @@ async fn post_to_guilds(
         let mut by_guild: BTreeMap<i64, (i64, Vec<&SummaryJob>)> = BTreeMap::new();
 
         for job in match_jobs {
-            let targets =
-                summary_channel::targets_for(pool, job.discord_id, application_id)
-                    .await?;
+            let targets = summary_channel::targets_for(
+                pool,
+                job.discord_id,
+                application_id,
+                slot,
+            )
+            .await?;
 
             for target in targets {
                 by_guild

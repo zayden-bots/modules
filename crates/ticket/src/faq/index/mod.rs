@@ -80,7 +80,7 @@ impl WikiIndex {
                     Ok(AppEvent::Resync) => index.guilds.clear(),
                     Ok(
                         AppEvent::EntitlementChanged(_)
-                        | AppEvent::ModulesChanged(_)
+                        | AppEvent::ModulesChanged { .. }
                         | AppEvent::PatreonPost(_)
                         | AppEvent::YoutubeUpload(_)
                         | AppEvent::HostingPaid(_)

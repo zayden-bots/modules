@@ -12,7 +12,7 @@ const ZAYDEN: i64 = 1000;
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("squad_targets"))]
 async fn targets_need_squad_membership_a_presence_and_the_module(pool: PgPool) {
-    let targets = targets_for(&pool, 10, ZAYDEN).await.unwrap();
+    let targets = targets_for(&pool, 10, ZAYDEN, "zayden").await.unwrap();
 
     let guilds: Vec<(i64, i64)> =
         targets.iter().map(|target| (target.guild_id, target.channel_id)).collect();
@@ -22,22 +22,22 @@ async fn targets_need_squad_membership_a_presence_and_the_module(pool: PgPool) {
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("squad_targets"))]
 async fn targets_are_per_member(pool: PgPool) {
-    let targets = targets_for(&pool, 11, ZAYDEN).await.unwrap();
+    let targets = targets_for(&pool, 11, ZAYDEN, "zayden").await.unwrap();
 
     let guilds: Vec<i64> = targets.iter().map(|target| target.guild_id).collect();
 
     assert_eq!(guilds, vec![1]);
-    assert!(targets_for(&pool, 12, ZAYDEN).await.unwrap().is_empty());
+    assert!(targets_for(&pool, 12, ZAYDEN, "zayden").await.unwrap().is_empty());
 }
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("squad_targets"))]
 async fn another_application_only_sees_the_guilds_it_is_in(pool: PgPool) {
-    assert!(targets_for(&pool, 10, 3000).await.unwrap().is_empty());
+    assert!(targets_for(&pool, 10, 3000, "zayden").await.unwrap().is_empty());
 }
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("squad_targets"))]
 async fn leaderboards_go_only_to_gated_guilds_with_the_toggle_on(pool: PgPool) {
-    let guilds: Vec<i64> = leaderboard_guilds(&pool, ZAYDEN)
+    let guilds: Vec<i64> = leaderboard_guilds(&pool, ZAYDEN, "zayden")
         .await
         .unwrap()
         .iter()

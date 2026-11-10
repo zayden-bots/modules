@@ -100,6 +100,7 @@ pub async fn targets_for(
     pool: &PgPool,
     discord_id: i64,
     application_id: i64,
+    slot: &str,
 ) -> sqlx::Result<Vec<SquadTarget>> {
     sqlx::query_as!(
         SquadTarget,
@@ -111,8 +112,9 @@ pub async fn targets_for(
          AND m.discord_id = $1
          AND m.squad
         WHERE NOT EXISTS (
-                SELECT 1 FROM guild_modules gm
+                SELECT 1 FROM guild_app_modules gm
                 WHERE gm.guild_id = c.guild_id
+                  AND gm.application_id = $2
                   AND gm.module = 'deadlock'
                   AND NOT gm.enabled
             )
@@ -122,11 +124,12 @@ pub async fn targets_for(
                   AND p.application_id = $2
                   AND p.left_at IS NULL
             )
-          AND serving_application(c.guild_id) IS NULL
+          AND serving_application(c.guild_id, $3) = $2
         ORDER BY c.guild_id
         "#,
         discord_id,
-        application_id
+        application_id,
+        slot
     )
     .fetch_all(pool)
     .await
@@ -135,6 +138,7 @@ pub async fn targets_for(
 pub async fn leaderboard_guilds(
     pool: &PgPool,
     application_id: i64,
+    slot: &str,
 ) -> sqlx::Result<Vec<SquadChannel>> {
     sqlx::query_as!(
         SquadChannel,
@@ -143,8 +147,9 @@ pub async fn leaderboard_guilds(
         FROM deadlock_squad_channel c
         WHERE c.leaderboard
           AND NOT EXISTS (
-                SELECT 1 FROM guild_modules gm
+                SELECT 1 FROM guild_app_modules gm
                 WHERE gm.guild_id = c.guild_id
+                  AND gm.application_id = $1
                   AND gm.module = 'deadlock'
                   AND NOT gm.enabled
             )
@@ -154,10 +159,11 @@ pub async fn leaderboard_guilds(
                   AND p.application_id = $1
                   AND p.left_at IS NULL
             )
-          AND serving_application(c.guild_id) IS NULL
+          AND serving_application(c.guild_id, $2) = $1
         ORDER BY c.guild_id
         "#,
-        application_id
+        application_id,
+        slot
     )
     .fetch_all(pool)
     .await

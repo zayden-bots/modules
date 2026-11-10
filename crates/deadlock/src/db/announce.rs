@@ -128,6 +128,7 @@ impl PatchAnnounceRow {
 pub async fn targets(
     pool: &PgPool,
     application_id: i64,
+    slot: &str,
 ) -> sqlx::Result<Vec<PatchAnnounceRow>> {
     let rows = sqlx::query_as!(
         PatchAnnounceRow,
@@ -135,8 +136,9 @@ pub async fn targets(
         SELECT a.guild_id, a.channel_id, a.message, a.ping_role_ids
         FROM deadlock_patch_announce a
         WHERE NOT EXISTS (
-                SELECT 1 FROM guild_modules m
+                SELECT 1 FROM guild_app_modules m
                 WHERE m.guild_id = a.guild_id
+                  AND m.application_id = $1
                   AND m.module = 'deadlock'
                   AND NOT m.enabled
             )
@@ -146,9 +148,10 @@ pub async fn targets(
                   AND p.application_id = $1
                   AND p.left_at IS NULL
             )
-          AND serving_application(a.guild_id) IS NULL
+          AND serving_application(a.guild_id, $2) = $1
         "#,
-        application_id
+        application_id,
+        slot
     )
     .fetch_all(pool)
     .await?;

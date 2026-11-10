@@ -35,16 +35,19 @@ INSERT INTO guild_presence (guild_id, application_id, left_at)
         (6, 2000, NULL),
         (7, 1000, NULL);
 
-INSERT INTO guild_modules (guild_id, module, enabled)
+INSERT INTO guild_app_modules (guild_id, application_id, module, enabled)
     VALUES
-        (2, 'deadlock', TRUE),
-        (3, 'deadlock', FALSE);
+        (2, 1000, 'deadlock', TRUE),
+        (3, 1000, 'deadlock', FALSE);
 
-INSERT INTO custom_bots (application_id, bot_user_id, name, public_key, token_ct, token_nonce, key_id, registered_by)
-    VALUES (2000, 2001, 'Custom', 'key', '\x00'::bytea, '\x00'::bytea, 1, 1);
+INSERT INTO applications (application_id, slot, kind, bot_user_id, name)
+    VALUES (1000, 'zayden', 'default', 1001, 'Zayden');
 
-INSERT INTO custom_bot_guilds (guild_id, application_id, attached_by)
-    VALUES (6, 2000, 1);
+INSERT INTO applications (application_id, slot, kind, bot_user_id, name, public_key, token_ct, token_nonce, key_id, registered_by)
+    VALUES (2000, 'zayden', 'custom', 2001, 'Custom', 'key', '\x00'::bytea, '\x00'::bytea, 1, 1);
+
+INSERT INTO application_guilds (guild_id, slot, application_id, attached_by)
+    VALUES (6, 'zayden', 2000, 1);
 
 INSERT INTO entitlements (provider, external_id, scope_type, scope_id, tier)
     VALUES ('test', 'guild-6', 'guild', 6, 'ultra');

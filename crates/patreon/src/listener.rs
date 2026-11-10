@@ -21,7 +21,7 @@ pub(crate) fn spawn_patreon_listener(ctx: Context, app: Arc<AppState>) {
                 Ok(AppEvent::Resync) => announce(&ctx, &app).await,
                 Ok(
                     AppEvent::ConfigChanged(_)
-                    | AppEvent::ModulesChanged(_)
+                    | AppEvent::ModulesChanged { .. }
                     | AppEvent::EntitlementChanged(_)
                     | AppEvent::YoutubeUpload(_)
                     | AppEvent::HostingPaid(_)

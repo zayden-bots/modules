@@ -63,22 +63,10 @@ impl Module for DeadlockModule {
 
     fn cron_jobs(&self) -> Vec<CronResult> {
         vec![
-            DeadlockPatchCron::cron_job(
-                Arc::clone(&self.api),
-                self.me.application_id.get(),
-            ),
-            DeadlockMatchCron::cron_job(
-                Arc::clone(&self.api),
-                self.me.application_id.get(),
-            ),
-            DeadlockRankCron::cron_job(
-                Arc::clone(&self.api),
-                self.me.application_id.get(),
-            ),
-            DeadlockLeaderboardCron::cron_job(
-                Arc::clone(&self.api),
-                self.me.application_id.get(),
-            ),
+            DeadlockPatchCron::cron_job(Arc::clone(&self.api), self.me),
+            DeadlockMatchCron::cron_job(Arc::clone(&self.api), self.me),
+            DeadlockRankCron::cron_job(Arc::clone(&self.api), self.me),
+            DeadlockLeaderboardCron::cron_job(Arc::clone(&self.api), self.me),
             DeadlockBriefingCron::cron_job(),
             DeadlockCacheGcCron::cron_job(),
         ]
