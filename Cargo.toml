@@ -172,10 +172,10 @@ watch = { path = "./crates/watch" }
 youtube = { path = "./crates/youtube" }
 
 # -- Org repositories (one tag per repository)
-schema = { git = "https://github.com/ViridianLink/schema", tag = "v1.0.0" }
-zayden-app = { git = "https://github.com/ViridianLink/platform", tag = "v1.0.0" }
-zayden-core = { git = "https://github.com/ViridianLink/platform", tag = "v1.0.0" }
-zayden-graphics = { git = "https://github.com/ViridianLink/platform", tag = "v1.0.0" }
+schema = { git = "https://github.com/zayden-bots/schema" }
+zayden-app = { git = "https://github.com/zayden-bots/platform" }
+zayden-core = { git = "https://github.com/zayden-bots/platform" }
+zayden-graphics = { git = "https://github.com/zayden-bots/platform" }
 
 # -- First-party git dependencies
 bungie-api = { git = "https://github.com/ViridianLink/bungie-api.git", branch = "main" }
