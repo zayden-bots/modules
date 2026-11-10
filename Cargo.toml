@@ -143,35 +143,12 @@ redundant_pub_crate = "allow"
 [workspace.dependencies]
 
 # -- Workspace members
-accounts = { path = "./crates/accounts" }
 ai = { path = "./crates/ai" }
-deadlock = { path = "./crates/deadlock" }
-destiny2 = { path = "./crates/destiny2" }
-family = { path = "./crates/family" }
-gambling = { path = "./crates/gambling" }
-gold-star = { path = "./crates/gold-star" }
-greetings = { path = "./crates/greetings" }
-honeypot = { path = "./crates/honeypot" }
-hosting = { path = "./crates/hosting" }
 jellyfin = { path = "./crates/jellyfin" }
 levels = { path = "./crates/levels" }
-lfg = { path = "./crates/lfg" }
-llamad2 = { path = "./crates/llamad2" }
-marathon = { path = "./crates/marathon" }
-misc = { path = "./crates/misc" }
 moderation = { path = "./crates/moderation" }
-music = { path = "./crates/music" }
-palworld = { path = "./crates/palworld" }
-patreon = { path = "./crates/patreon" }
-reaction-roles = { path = "./crates/reaction-roles" }
-suggestions = { path = "./crates/suggestions" }
-temp-voice = { path = "./crates/temp-voice" }
-ticket = { path = "./crates/ticket" }
-verify = { path = "./crates/verify" }
-watch = { path = "./crates/watch" }
-youtube = { path = "./crates/youtube" }
 
-# -- Org repositories (one tag per repository)
+# -- Org repositories (one ref per repository)
 schema = { git = "https://github.com/zayden-bots/schema" }
 zayden-app = { git = "https://github.com/zayden-bots/platform" }
 zayden-core = { git = "https://github.com/zayden-bots/platform" }
