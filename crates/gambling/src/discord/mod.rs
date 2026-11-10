@@ -70,7 +70,7 @@ impl Module for GamblingModule {
         "gambling"
     }
 
-    fn cron_jobs(&self) -> Vec<CronResult> {
+    fn worker_jobs(&self) -> Vec<CronResult> {
         vec![
             StaminaCron::cron_job(),
             crate::Lotto::cron_job(),

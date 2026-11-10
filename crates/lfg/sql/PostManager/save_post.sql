@@ -7,10 +7,11 @@ post AS (
         activity,
         start_time,
         description,
-        fireteam_size
+        fireteam_size,
+        application_id
     )
     VALUES
-    ($1, $2, $3, $4, $5, $6) ON CONFLICT (id)
+    ($1, $2, $3, $4, $5, $6, $9) ON CONFLICT (id)
     DO
     UPDATE
         SET
@@ -18,7 +19,10 @@ post AS (
             activity = excluded.activity,
             start_time = excluded.start_time,
             description = excluded.description,
-            fireteam_size = excluded.fireteam_size
+            fireteam_size = excluded.fireteam_size,
+            application_id = coalesce(
+                lfg_posts.application_id, excluded.application_id
+            )
     RETURNING
         id
 ),

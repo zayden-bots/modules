@@ -2,7 +2,19 @@
 //! alone. A sweep that over-claims suspends a server somebody has paid for.
 
 use hosting::{store, sweep};
+use serenity::all::{ApplicationId, UserId};
 use sqlx::PgPool;
+use zayden_app::applications::{AppKind, Slot};
+use zayden_core::Identity;
+
+const fn identity(application_id: u64, kind: AppKind) -> Identity {
+    Identity {
+        application_id: ApplicationId::new(application_id),
+        user_id: UserId::new(2),
+        slot: Slot::Zayden,
+        kind,
+    }
+}
 
 #[expect(
     clippy::expect_used,
@@ -90,11 +102,56 @@ async fn a_claimed_deletion_leases_rather_than_releases(pool: PgPool) {
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("hosting"))]
 async fn reminders_fire_once_per_window(pool: PgPool) {
-    let first = ids(sweep::claim_reminders(&pool, 2, 40).await);
-    let second = ids(sweep::claim_reminders(&pool, 2, 40).await);
+    let first =
+        ids(sweep::claim_reminders(&pool, 2, 40, identity(1, AppKind::Default))
+            .await);
+    let second =
+        ids(sweep::claim_reminders(&pool, 2, 40, identity(1, AppKind::Default))
+            .await);
 
     assert_eq!(first, vec![7], "row 8 was already reminded for this window");
     assert!(second.is_empty(), "a reminder must never be sent twice");
+}
+
+#[sqlx::test(migrator = "schema::MIGRATOR", fixtures("hosting"))]
+async fn claim_reminders_skips_servers_authored_by_another_application(
+    pool: PgPool,
+) {
+    sqlx::query!("UPDATE hosted_servers SET application_id = 2 WHERE id = 7")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let other =
+        ids(sweep::claim_reminders(&pool, 2, 40, identity(1, AppKind::Default))
+            .await);
+    let owner = ids(sweep::claim_reminders(
+        &pool,
+        2,
+        40,
+        identity(2, AppKind::Custom),
+    )
+    .await);
+
+    assert!(other.is_empty(), "row 7 belongs to application 2");
+    assert_eq!(owner, vec![7]);
+}
+
+#[sqlx::test(migrator = "schema::MIGRATOR", fixtures("hosting"))]
+async fn claim_reminders_takes_unauthored_servers_only_when_primary(pool: PgPool) {
+    let custom = ids(sweep::claim_reminders(
+        &pool,
+        2,
+        40,
+        identity(2, AppKind::Custom),
+    )
+    .await);
+    let primary =
+        ids(sweep::claim_reminders(&pool, 2, 40, identity(1, AppKind::Default))
+            .await);
+
+    assert!(custom.is_empty(), "only the primary handles unauthored rows");
+    assert_eq!(primary, vec![7]);
 }
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("hosting"))]
@@ -102,7 +159,9 @@ async fn trials_never_get_an_expiry_reminder(pool: PgPool) {
     // Row 11's trial ends in an hour, well inside a two-day reminder window.
     // Reminders are a subscription courtesy; firing one here would DM the owner
     // before the server had finished installing.
-    let claimed = ids(sweep::claim_reminders(&pool, 2, 40).await);
+    let claimed =
+        ids(sweep::claim_reminders(&pool, 2, 40, identity(1, AppKind::Default))
+            .await);
 
     assert!(!claimed.contains(&11), "a trial has no renewal to be reminded of");
 }
@@ -136,7 +195,9 @@ async fn revalidation_sees_only_subscription_billed_rows(pool: PgPool) {
 async fn deleted_rows_are_invisible_to_every_sweep(pool: PgPool) {
     let expired = ids(sweep::claim_expired(&pool, 3, 40).await);
     let deletions = ids(sweep::claim_deletions(&pool, 40).await);
-    let reminders = ids(sweep::claim_reminders(&pool, 2, 40).await);
+    let reminders =
+        ids(sweep::claim_reminders(&pool, 2, 40, identity(1, AppKind::Default))
+            .await);
     let converted = ids(sweep::convert_included_trials(&pool, 40).await);
 
     for claimed in [expired, deletions, reminders, converted] {
@@ -146,7 +207,7 @@ async fn deleted_rows_are_invisible_to_every_sweep(pool: PgPool) {
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("hosting"))]
 async fn the_per_user_cap_counts_live_rows_only(pool: PgPool) {
-    let owner = serenity::all::UserId::new(3);
+    let owner = UserId::new(3);
     let count = store::live_count(&pool, owner).await.ok();
 
     // Rows 5, 6 and 9 are live; row 10 is deleted.

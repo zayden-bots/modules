@@ -2,13 +2,13 @@ pub mod actions;
 pub mod activities;
 pub mod commands;
 pub mod components;
-pub mod cron;
 mod discord;
 pub mod error;
 pub mod events;
 pub mod guild_manager;
 pub mod modals;
 pub mod models;
+pub mod tasks;
 pub mod templates;
 pub mod utils;
 

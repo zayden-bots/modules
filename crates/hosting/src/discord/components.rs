@@ -19,6 +19,7 @@ async fn submit(cx: &ModalCtx<'_>, runtime: &Runtime) -> Result<(), HandlerError
         &runtime,
         &cx.app.db,
         &cx.app.entitlements,
+        cx.me,
     )
     .await?;
 

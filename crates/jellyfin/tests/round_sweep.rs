@@ -48,8 +48,8 @@ async fn round_expiring(pool: &PgPool, offset: Span) -> sqlx::Result<i64> {
     sqlx::query_scalar!(
         r#"
         INSERT INTO jellyfin_game_rounds
-            (guild_id, channel_id, started_by, game, kind, answer, expires_at)
-        VALUES ($1, $2, $3, 'guess', 'visual', 'Arrival', $4)
+            (guild_id, channel_id, started_by, game, kind, answer, expires_at, application_id)
+        VALUES ($1, $2, $3, 'guess', 'visual', 'Arrival', $4, 1)
         RETURNING id
         "#,
         GUILD.get().cast_signed(),

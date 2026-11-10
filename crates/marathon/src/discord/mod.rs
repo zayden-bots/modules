@@ -45,7 +45,7 @@ impl Module for MarathonModule {
         Ok(())
     }
 
-    fn cron_jobs(&self) -> Vec<CronResult> {
+    fn worker_jobs(&self) -> Vec<CronResult> {
         vec![
             MarathonAnnounceCron::cron_job(Arc::clone(&self.client)),
             MarathonNewsCron::cron_job(

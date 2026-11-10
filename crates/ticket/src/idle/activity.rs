@@ -28,13 +28,15 @@ impl ThreadActivity {
         guild_id: GuildId,
         thread_id: ThreadId,
         op: UserId,
+        application_id: i64,
     ) -> sqlx::Result<()> {
         sqlx::query!(
-            "INSERT INTO support_thread_activity (thread_id, guild_id, op_id) \
-             VALUES ($1, $2, $3) ON CONFLICT (thread_id) DO NOTHING",
+            "INSERT INTO support_thread_activity (thread_id, guild_id, op_id, application_id) \
+             VALUES ($1, $2, $3, $4) ON CONFLICT (thread_id) DO NOTHING",
             as_i64(thread_id.get()),
             as_i64(guild_id.get()),
-            as_i64(op.get())
+            as_i64(op.get()),
+            application_id
         )
         .execute(pool)
         .await?;

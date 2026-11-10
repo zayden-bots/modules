@@ -23,6 +23,7 @@ use zayden_core::{
     CronResult,
     EventCtx,
     EventKind,
+    Identity,
     Module,
     ModuleCtx,
     ModuleError,
@@ -74,13 +75,16 @@ impl Module for TicketModule {
         Ok(())
     }
 
-    fn cron_jobs(&self) -> Vec<CronResult> {
+    fn entity_jobs(&self, me: Identity) -> Vec<CronResult> {
         vec![
-            SupportIdleCron::cron_job(),
-            SupportIdleCloseCron::cron_job(),
-            SupportIdleStaleCron::cron_job(),
-            SupportIdleGcCron::cron_job(),
+            SupportIdleCron::cron_job(me),
+            SupportIdleCloseCron::cron_job(me),
+            SupportIdleStaleCron::cron_job(me),
         ]
+    }
+
+    fn worker_jobs(&self) -> Vec<CronResult> {
+        vec![SupportIdleGcCron::cron_job()]
     }
 
     fn on_start(&self, cx: &StartCtx<'_>) {
@@ -122,8 +126,13 @@ impl Module for TicketModule {
                 }
                 tokio::try_join!(
                     async {
-                        crate::SupportMessageCommand::run(&cx.ctx.http, msg, &cx.app)
-                            .await
+                        crate::SupportMessageCommand::run(
+                            &cx.ctx.http,
+                            msg,
+                            &cx.app,
+                            cx.me,
+                        )
+                        .await
                             .map_err(HandlerError::from)
                     },
                     async {
@@ -139,6 +148,7 @@ impl Module for TicketModule {
                     thread,
                     *newly_created,
                     &cx.app,
+                    cx.me,
                 )
                 .await?;
             },

@@ -11,16 +11,21 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+zayden-app = { workspace = true }
 zayden-core = { workspace = true }
 
 async-trait = { workspace = true }
 jiff = { workspace = true }
 jiff-sqlx = { workspace = true }
 futures = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["std"] }
 serenity = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-serde_json = { workspace = true }
+schema = { workspace = true }
+sqlx = { workspace = true, features = ["migrate"] }
+tokio = { workspace = true, features = ["macros", "rt"] }

@@ -2845,11 +2845,14 @@ dependencies = [
  "futures",
  "jiff",
  "jiff-sqlx",
+ "schema",
+ "serde",
  "serde_json",
  "serenity",
  "sqlx",
  "tokio",
  "tracing",
+ "zayden-app",
  "zayden-core",
 ]
 
@@ -7694,6 +7697,7 @@ dependencies = [
  "reqwest 0.13.5",
  "secrecy",
  "serde",
+ "serde_json",
  "sqlx",
  "thiserror 1.0.69",
  "tokio",

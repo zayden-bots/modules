@@ -42,7 +42,7 @@ impl Module for PatreonModule {
         Ok(())
     }
 
-    fn cron_jobs(&self) -> Vec<CronResult> {
+    fn worker_jobs(&self) -> Vec<CronResult> {
         self.app.as_ref().map_or_else(Vec::new, |app| {
             vec![PatreonPollCron::cron_job(self.http.clone(), Arc::clone(app))]
         })

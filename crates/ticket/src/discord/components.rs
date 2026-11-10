@@ -174,7 +174,7 @@ impl ModuleModal for CreateTicketModal {
     }
 
     async fn run(&self, cx: &ModalCtx<'_>) -> Result<(), HandlerError> {
-        TicketModal::run(&cx.ctx.http, cx.interaction, &cx.app).await?;
+        TicketModal::run(&cx.ctx.http, cx.interaction, &cx.app, cx.me).await?;
         Ok(())
     }
 }

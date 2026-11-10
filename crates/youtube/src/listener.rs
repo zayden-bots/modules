@@ -43,6 +43,7 @@ pub(crate) fn spawn_youtube_listener(
                     | AppEvent::ServingChanged(_)
                     | AppEvent::CustomBotsChanged(_)
                     | AppEvent::LoadoutsChanged
+                    | AppEvent::TaskScheduled(_)
                     // The next poll re-reads every channel, so nothing is lost.
                     | AppEvent::Resync,
                 ) => {},

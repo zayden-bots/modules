@@ -79,7 +79,7 @@ impl Module for Destiny2Module {
         Ok(())
     }
 
-    fn cron_jobs(&self) -> Vec<CronResult> {
+    fn worker_jobs(&self) -> Vec<CronResult> {
         vec![EndgameAnalysisSheetCron::cron_job(
             Arc::clone(&self.bungie_client),
             self.google_api_key.expose_secret().to_owned(),

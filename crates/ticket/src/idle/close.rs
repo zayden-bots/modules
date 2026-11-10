@@ -1,6 +1,6 @@
 use serenity::all::{ChannelId, ForumTagId, GuildId, ThreadId, UserId};
 use sqlx::PgPool;
-use zayden_core::as_u64;
+use zayden_core::{Identity, as_u64};
 
 pub struct DueClose {
     pub thread_id: i64,
@@ -43,7 +43,11 @@ impl DueClose {
     }
 }
 
-pub async fn claim_due(pool: &PgPool, limit: i64) -> sqlx::Result<Vec<DueClose>> {
+pub async fn claim_due(
+    pool: &PgPool,
+    limit: i64,
+    me: Identity,
+) -> sqlx::Result<Vec<DueClose>> {
     sqlx::query_as!(
         DueClose,
         r#"
@@ -57,6 +61,7 @@ pub async fn claim_due(pool: &PgPool, limit: i64) -> sqlx::Result<Vec<DueClose>>
               AND NOT a.waiting_on_helper
               AND a.nudged_at IS NOT NULL
               AND a.nudged_at < now() - (s.idle_close_after_secs * interval '1 second')
+              AND (a.application_id = $2 OR (a.application_id IS NULL AND $3))
             ORDER BY a.guild_id, a.nudged_at
             LIMIT $1
             FOR UPDATE OF a SKIP LOCKED
@@ -74,7 +79,9 @@ pub async fn claim_due(pool: &PgPool, limit: i64) -> sqlx::Result<Vec<DueClose>>
             s.support_channel_id,
             s.closed_tag_id
         "#,
-        limit
+        limit,
+        me.application_i64(),
+        me.is_primary()
     )
     .fetch_all(pool)
     .await

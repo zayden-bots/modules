@@ -1,6 +1,6 @@
 use serenity::all::{ChannelId, ForumTagId, GuildId, ThreadId};
 use sqlx::PgPool;
-use zayden_core::as_u64;
+use zayden_core::{Identity, as_u64};
 
 pub struct StaleTarget {
     pub thread_id: i64,
@@ -31,7 +31,11 @@ impl StaleTarget {
     }
 }
 
-pub async fn claim_due(pool: &PgPool, limit: i64) -> sqlx::Result<Vec<StaleTarget>> {
+pub async fn claim_due(
+    pool: &PgPool,
+    limit: i64,
+    me: Identity,
+) -> sqlx::Result<Vec<StaleTarget>> {
     sqlx::query_as!(
         StaleTarget,
         r#"
@@ -45,6 +49,7 @@ pub async fn claim_due(pool: &PgPool, limit: i64) -> sqlx::Result<Vec<StaleTarge
               AND NOT a.waiting_on_helper
               AND a.staled_at IS NULL
               AND a.since < now() - (s.stale_after_secs * interval '1 second')
+              AND (a.application_id = $2 OR (a.application_id IS NULL AND $3))
             ORDER BY a.guild_id, a.since
             LIMIT $1
             FOR UPDATE OF a SKIP LOCKED
@@ -60,7 +65,9 @@ pub async fn claim_due(pool: &PgPool, limit: i64) -> sqlx::Result<Vec<StaleTarge
             s.support_channel_id,
             s.stale_tag_id
         "#,
-        limit
+        limit,
+        me.application_i64(),
+        me.is_primary()
     )
     .fetch_all(pool)
     .await
@@ -69,6 +76,7 @@ pub async fn claim_due(pool: &PgPool, limit: i64) -> sqlx::Result<Vec<StaleTarge
 pub async fn claim_cleared(
     pool: &PgPool,
     limit: i64,
+    me: Identity,
 ) -> sqlx::Result<Vec<StaleTarget>> {
     sqlx::query_as!(
         StaleTarget,
@@ -78,6 +86,7 @@ pub async fn claim_cleared(
             FROM support_thread_activity a
             WHERE a.staled_at IS NOT NULL
               AND a.since > a.staled_at
+              AND (a.application_id = $2 OR (a.application_id IS NULL AND $3))
             ORDER BY a.thread_id
             LIMIT $1
             FOR UPDATE OF a SKIP LOCKED
@@ -93,7 +102,9 @@ pub async fn claim_cleared(
             s.support_channel_id,
             s.stale_tag_id
         "#,
-        limit
+        limit,
+        me.application_i64(),
+        me.is_primary()
     )
     .fetch_all(pool)
     .await

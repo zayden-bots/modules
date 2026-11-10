@@ -49,7 +49,7 @@ impl Module for YoutubeModule {
         Ok(())
     }
 
-    fn cron_jobs(&self) -> Vec<CronResult> {
+    fn worker_jobs(&self) -> Vec<CronResult> {
         self.runtime.as_ref().map_or_else(Vec::new, |runtime| {
             vec![
                 YoutubePollCron::cron_job(

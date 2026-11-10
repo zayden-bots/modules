@@ -10,10 +10,11 @@ use serenity::all::{
     PartialGuildThread,
 };
 use sqlx::PgPool;
-use tracing::debug;
+use tracing::{debug, error};
+use zayden_core::Identity;
 
-use crate::cron::create_reminders;
 use crate::modals::create::GuildRow;
+use crate::tasks;
 use crate::templates::TemplateInfo;
 use crate::{LfgError, PostRow, Result, actions};
 
@@ -33,6 +34,7 @@ pub async fn guild_create(
     ctx: &Context,
     guild: &Guild,
     pool: &PgPool,
+    me: Identity,
 ) -> Result<()> {
     let Ok(Some(guild_row)) = GuildRow::get(pool, guild.id).await else {
         debug!("guild not configured for LFG");
@@ -103,8 +105,10 @@ pub async fn guild_create(
 
         let start_time = post.start_time.to_jiff().to_zoned(TimeZone::UTC);
 
-        if start_time > now {
-            create_reminders(ctx, &post).await;
+        if start_time > now && thread.owner_id == Some(me.user_id) {
+            if let Err(e) = tasks::schedule(pool, me, &post).await {
+                error!(error = ?e, post_id = %post.thread(), "lfg: scheduling reminders failed");
+            }
         }
 
         if start_time < now

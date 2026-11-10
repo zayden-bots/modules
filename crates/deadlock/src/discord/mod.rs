@@ -61,7 +61,7 @@ impl Module for DeadlockModule {
         Ok(())
     }
 
-    fn cron_jobs(&self) -> Vec<CronResult> {
+    fn worker_jobs(&self) -> Vec<CronResult> {
         vec![
             DeadlockPatchCron::cron_job(Arc::clone(&self.api), self.me),
             DeadlockMatchCron::cron_job(Arc::clone(&self.api), self.me),

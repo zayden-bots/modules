@@ -1,6 +1,6 @@
 use serenity::all::{RoleId, ThreadId, UserId};
 use sqlx::PgPool;
-use zayden_core::as_u64;
+use zayden_core::{Identity, as_u64};
 
 use crate::idle::Ball;
 
@@ -45,7 +45,11 @@ impl DueNudge {
     }
 }
 
-pub async fn claim_due(pool: &PgPool, limit: i64) -> sqlx::Result<Vec<DueNudge>> {
+pub async fn claim_due(
+    pool: &PgPool,
+    limit: i64,
+    me: Identity,
+) -> sqlx::Result<Vec<DueNudge>> {
     sqlx::query_as!(
         DueNudge,
         r#"
@@ -57,6 +61,7 @@ pub async fn claim_due(pool: &PgPool, limit: i64) -> sqlx::Result<Vec<DueNudge>>
               AND NOT a.paused
               AND a.nudged_at IS NULL
               AND a.since < now() - (s.idle_after_secs * interval '1 second')
+              AND (a.application_id = $2 OR (a.application_id IS NULL AND $3))
             ORDER BY a.guild_id, a.since
             LIMIT $1
             FOR UPDATE OF a SKIP LOCKED
@@ -78,7 +83,9 @@ pub async fn claim_due(pool: &PgPool, limit: i64) -> sqlx::Result<Vec<DueNudge>>
                 ARRAY[]::bigint[]
             ) AS "support_role_ids!"
         "#,
-        limit
+        limit,
+        me.application_i64(),
+        me.is_primary()
     )
     .fetch_all(pool)
     .await

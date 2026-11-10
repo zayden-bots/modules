@@ -14,7 +14,7 @@ use serenity::all::{
 };
 use tracing::debug;
 use zayden_app::state::AppState;
-use zayden_core::{CoreError, as_i64, as_u64};
+use zayden_core::{CoreError, Identity, as_i64, as_u64};
 
 use crate::idle::ThreadActivity;
 use crate::{
@@ -35,6 +35,7 @@ impl SupportMessageCommand {
         http: &Arc<Http>,
         message: &Message,
         app: &Arc<AppState>,
+        me: Identity,
     ) -> Result<()> {
         let stores = TicketStores::from_app(app);
         let pool = &app.db;
@@ -90,7 +91,14 @@ impl SupportMessageCommand {
 
         TicketGuildRow::increment_thread_id(stores.ticket, guild_id).await?;
 
-        ThreadActivity::insert(pool, guild_id, thread.id, message.author.id).await?;
+        ThreadActivity::insert(
+            pool,
+            guild_id,
+            thread.id,
+            message.author.id,
+            me.application_i64(),
+        )
+        .await?;
 
         let issue = CreateEmbed::new()
             .title(ISSUE_EMBED_TITLE)

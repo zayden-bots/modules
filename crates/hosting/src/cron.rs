@@ -4,6 +4,7 @@ use jiff_cron::error::Error as CronError;
 use serenity::all::{CreateMessage, Http, UserId};
 use tracing::{error, warn};
 use zayden_app::entitlement::EntitlementService;
+use zayden_core::Identity;
 use zayden_core::cron::CronJob;
 
 use crate::sweep::{self, Claimed};
@@ -14,21 +15,24 @@ const BATCH: i64 = 50;
 pub struct HostingReminderCron;
 
 impl HostingReminderCron {
-    pub fn cron_job(runtime: Arc<HostingRuntime>) -> Result<CronJob, CronError> {
+    pub fn cron_job(
+        runtime: Arc<HostingRuntime>,
+        me: Identity,
+    ) -> Result<CronJob, CronError> {
         CronJob::new("hosting_reminder", "0 0 * * * * *").map(|job| {
             job.set_action(move |ctx, pool| {
                 let runtime = Arc::clone(&runtime);
                 async move {
                     let days = clamp_days(runtime.config.reminder_days);
 
-                    let due = match sweep::claim_reminders(&pool, days, BATCH).await
-                    {
-                        Ok(due) => due,
-                        Err(e) => {
-                            error!(error = %e, "hosting reminder sweep failed");
-                            return;
-                        },
-                    };
+                    let due =
+                        match sweep::claim_reminders(&pool, days, BATCH, me).await {
+                            Ok(due) => due,
+                            Err(e) => {
+                                error!(error = %e, "hosting reminder sweep failed");
+                                return;
+                            },
+                        };
 
                     for row in due {
                         remind(&ctx.http, &runtime, &row).await;

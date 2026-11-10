@@ -71,7 +71,7 @@ impl Module for PalworldModule {
         Ok(())
     }
 
-    fn cron_jobs(&self) -> Vec<CronResult> {
+    fn worker_jobs(&self) -> Vec<CronResult> {
         vec![
             PalworldUploadSweepCron::cron_job(),
             PalworldSaveRefreshCron::cron_job(Arc::clone(&self.client)),

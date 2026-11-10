@@ -60,6 +60,7 @@ pub async fn run<S: BuildHasher>(
     };
 
     let round_id = NewRound {
+        application_id: cx.me.application_i64(),
         guild_id,
         channel_id: cx.interaction.channel_id,
         started_by: cx.interaction.user.id,

@@ -332,7 +332,11 @@ impl PostRow {
             .await
     }
 
-    pub async fn save(pool: &PgPool, row: Self) -> sqlx::Result<PgQueryResult> {
+    pub async fn save(
+        pool: &PgPool,
+        row: Self,
+        application_id: i64,
+    ) -> sqlx::Result<PgQueryResult> {
         let mut tx = pool.begin().await?;
 
         #[expect(
@@ -348,7 +352,8 @@ impl PostRow {
             row.description,
             row.fireteam_size,
             &row.fireteam,
-            &row.alternatives
+            &row.alternatives,
+            application_id
         )
         .execute(&mut *tx)
         .await?;

@@ -16,12 +16,12 @@ use serenity::all::{
 };
 use sqlx::PgPool;
 use sqlx::prelude::FromRow;
-use tracing::warn;
+use tracing::{error, warn};
 use zayden_core::limits::embed::FIELD_VALUE as MAX_FIELD_VALUE;
-use zayden_core::{UserTimezone, as_u64, parse_modal_components};
+use zayden_core::{Identity, UserTimezone, as_u64, parse_modal_components};
 
 use super::start_time;
-use crate::cron::create_reminders;
+use crate::tasks;
 use crate::templates::{DefaultTemplate, Template};
 use crate::{ACTIVITIES, LfgError, PostBuilder, PostRow, Result};
 
@@ -56,6 +56,7 @@ impl Create {
         ctx: &Context,
         interaction: &ModalInteraction,
         pool: &PgPool,
+        me: Identity,
     ) -> Result<()> {
         let guild_id = interaction.guild_id.ok_or(LfgError::MissingGuildId)?;
 
@@ -188,9 +189,11 @@ impl Create {
 
         let post = post.id(thread.id).build();
 
-        create_reminders(ctx, &post).await;
+        PostRow::save(pool, post.clone(), me.application_i64()).await?;
 
-        PostRow::save(pool, post).await?;
+        if let Err(e) = tasks::schedule(pool, me, &post).await {
+            error!(error = ?e, post_id = %post.thread(), "lfg: scheduling reminders failed");
+        }
 
         interaction
             .create_response(

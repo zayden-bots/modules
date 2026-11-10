@@ -3,6 +3,7 @@ use std::sync::Arc;
 use serenity::all::{GuildThread, Http};
 use tracing::{debug, warn};
 use zayden_app::state::AppState;
+use zayden_core::Identity;
 
 use crate::faq::{FaqContext, on_ticket_opened};
 use crate::idle::ThreadActivity;
@@ -19,6 +20,7 @@ impl SupportThreadCreate {
         thread: &GuildThread,
         newly_created: Option<bool>,
         app: &Arc<AppState>,
+        me: Identity,
     ) -> Result<()> {
         if newly_created != Some(true) {
             return Ok(());
@@ -41,8 +43,14 @@ impl SupportThreadCreate {
             return Ok(());
         }
 
-        ThreadActivity::insert(&app.db, guild_id, thread.id, thread.owner_id)
-            .await?;
+        ThreadActivity::insert(
+            &app.db,
+            guild_id,
+            thread.id,
+            thread.owner_id,
+            me.application_i64(),
+        )
+        .await?;
 
         let context = match FaqContext::load(stores.faq, guild_id).await {
             Ok(Some(context)) => context,

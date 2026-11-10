@@ -172,6 +172,7 @@ pub struct NewServer<'a> {
     pub price_cents: i64,
     pub billing_source: &'a str,
     pub claim_code: &'a str,
+    pub application_id: i64,
 }
 
 pub async fn insert_provisioning(pool: &PgPool, new: &NewServer<'_>) -> Result<i64> {
@@ -184,8 +185,8 @@ pub async fn insert_provisioning(pool: &PgPool, new: &NewServer<'_>) -> Result<i
         "INSERT INTO hosted_servers ( \
             owner_id, guild_id, game_key, plan, pelican_user_id, \
             memory_mib, cpu_percent, disk_mib, price_cents, billing_source, \
-            claim_code \
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) \
+            claim_code, application_id \
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) \
          RETURNING id",
         as_i64(new.owner_id.get()),
         new.guild_id.map(|g| as_i64(g.get())),
@@ -197,7 +198,8 @@ pub async fn insert_provisioning(pool: &PgPool, new: &NewServer<'_>) -> Result<i
         new.plan.disk_mib(),
         price,
         new.billing_source,
-        new.claim_code
+        new.claim_code,
+        new.application_id
     )
     .fetch_one(pool)
     .await?;

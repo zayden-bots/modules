@@ -8,11 +8,11 @@ use serenity::all::{
     ModalInteraction,
 };
 use sqlx::PgPool;
-use tracing::debug;
-use zayden_core::{UserTimezone, parse_modal_components};
+use tracing::{debug, error};
+use zayden_core::{Identity, UserTimezone, parse_modal_components};
 
 use super::start_time;
-use crate::cron::create_reminders;
+use crate::tasks;
 use crate::templates::DefaultTemplate;
 use crate::utils::update_embeds;
 use crate::{LfgError, PostBuilder, PostRow, Result};
@@ -24,6 +24,7 @@ impl Edit {
         ctx: &Context,
         interaction: &ModalInteraction,
         pool: &PgPool,
+        me: Identity,
     ) -> Result<()> {
         interaction
             .create_response(&ctx.http, CreateInteractionResponse::Acknowledge)
@@ -98,7 +99,9 @@ impl Edit {
         )
         .await?;
 
-        create_reminders(ctx, &post).await;
+        if let Err(e) = tasks::schedule(pool, me, &post).await {
+            error!(error = ?e, post_id = %post.thread(), "lfg: scheduling reminders failed");
+        }
 
         thread
             .widen()

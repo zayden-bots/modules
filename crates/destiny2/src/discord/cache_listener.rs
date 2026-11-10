@@ -29,7 +29,8 @@ pub fn spawn_cache_listener(app: Arc<AppState>) {
                     | AppEvent::YoutubeUpload(_)
                     | AppEvent::HostingPaid(_)
                     | AppEvent::ServingChanged(_)
-                    | AppEvent::CustomBotsChanged(_),
+                    | AppEvent::CustomBotsChanged(_)
+                    | AppEvent::TaskScheduled(_),
                 ) => {},
                 Err(RecvError::Closed) => break,
             }

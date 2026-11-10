@@ -5,13 +5,14 @@ use std::borrow::Cow;
 use async_trait::async_trait;
 use serenity::all::FullEvent;
 use slash_command::Lfg;
-use zayden_core::ctx::{ComponentCtx, ModalCtx};
+use zayden_app::tasks::Task;
+use zayden_core::ctx::{ComponentCtx, ModalCtx, TaskCtx};
 use zayden_core::error::HandlerError;
 use zayden_core::module::{ModuleComponent, ModuleModal};
 use zayden_core::scope::IdMatch;
 use zayden_core::{EventCtx, EventKind, Module, OverlapError, RegistryBuilder};
 
-use crate::{Components, KickComponent, TagsComponent};
+use crate::{Components, KickComponent, TagsComponent, tasks};
 
 // region: Components
 
@@ -182,7 +183,7 @@ impl ModuleModal for LfgEditModal {
     }
 
     async fn run(&self, cx: &ModalCtx<'_>) -> Result<(), HandlerError> {
-        crate::modals::Edit::run(cx.ctx, cx.interaction, &cx.app.db).await?;
+        crate::modals::Edit::run(cx.ctx, cx.interaction, &cx.app.db, cx.me).await?;
         Ok(())
     }
 }
@@ -196,7 +197,7 @@ impl ModuleModal for LfgCreateModal {
     }
 
     async fn run(&self, cx: &ModalCtx<'_>) -> Result<(), HandlerError> {
-        crate::modals::Create::run(cx.ctx, cx.interaction, &cx.app.db).await?;
+        crate::modals::Create::run(cx.ctx, cx.interaction, &cx.app.db, cx.me).await?;
         Ok(())
     }
 }
@@ -258,7 +259,7 @@ impl Module for LfgModule {
     ) -> Result<(), HandlerError> {
         match ev {
             FullEvent::GuildCreate { guild, .. } => {
-                crate::events::guild_create(cx.ctx, guild, &cx.app.db).await?;
+                crate::events::guild_create(cx.ctx, guild, &cx.app.db, cx.me).await?;
             },
             FullEvent::ThreadDelete { thread, .. } => {
                 crate::events::thread_delete(&cx.ctx.http, thread, &cx.app.db)
@@ -267,5 +268,19 @@ impl Module for LfgModule {
             _ => {},
         }
         Ok(())
+    }
+
+    fn task_kinds(&self) -> &'static [&'static str] {
+        &[tasks::REMINDER]
+    }
+
+    async fn run_task(
+        &self,
+        cx: &TaskCtx<'_>,
+        task: &Task,
+    ) -> Result<(), HandlerError> {
+        tasks::run(&cx.ctx.http, &cx.app.db, task)
+            .await
+            .map_err(HandlerError::new)
     }
 }

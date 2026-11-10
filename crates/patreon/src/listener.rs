@@ -27,7 +27,8 @@ pub(crate) fn spawn_patreon_listener(ctx: Context, app: Arc<AppState>) {
                     | AppEvent::HostingPaid(_)
                     | AppEvent::ServingChanged(_)
                     | AppEvent::CustomBotsChanged(_)
-                    | AppEvent::LoadoutsChanged,
+                    | AppEvent::LoadoutsChanged
+                    | AppEvent::TaskScheduled(_),
                 ) => {},
                 Err(RecvError::Lagged(n)) => {
                     warn!(

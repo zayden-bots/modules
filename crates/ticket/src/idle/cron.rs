@@ -1,6 +1,6 @@
 use serenity::all::{ForumTagId, Http};
 use tracing::{debug, error};
-use zayden_core::CronJob;
+use zayden_core::{CronJob, Identity};
 
 use crate::batch;
 use crate::idle::act;
@@ -15,10 +15,10 @@ const STALE_BATCH: i64 = 40;
 pub struct SupportIdleCron;
 
 impl SupportIdleCron {
-    pub fn cron_job() -> Result<CronJob, jiff_cron::error::Error> {
+    pub fn cron_job(me: Identity) -> Result<CronJob, jiff_cron::error::Error> {
         CronJob::new("support_idle_sweep", "0 */5 * * * * *").map(|job| {
             job.set_action(move |ctx, pool| async move {
-                let due = match claim_due(&pool, NUDGE_BATCH).await {
+                let due = match claim_due(&pool, NUDGE_BATCH, me).await {
                     Ok(due) => due,
                     Err(e) => {
                         error!(error = ?e, "support idle sweep failed");
@@ -41,10 +41,10 @@ impl SupportIdleCron {
 pub struct SupportIdleCloseCron;
 
 impl SupportIdleCloseCron {
-    pub fn cron_job() -> Result<CronJob, jiff_cron::error::Error> {
+    pub fn cron_job(me: Identity) -> Result<CronJob, jiff_cron::error::Error> {
         CronJob::new("support_idle_close", "30 */5 * * * * *").map(|job| {
             job.set_action(move |ctx, pool| async move {
-                let due = match claim_due_close(&pool, CLOSE_BATCH).await {
+                let due = match claim_due_close(&pool, CLOSE_BATCH, me).await {
                     Ok(due) => due,
                     Err(e) => {
                         error!(error = ?e, "support idle close sweep failed");
@@ -83,13 +83,13 @@ impl SupportIdleCloseCron {
 pub struct SupportIdleStaleCron;
 
 impl SupportIdleStaleCron {
-    pub fn cron_job() -> Result<CronJob, jiff_cron::error::Error> {
+    pub fn cron_job(me: Identity) -> Result<CronJob, jiff_cron::error::Error> {
         CronJob::new("support_idle_stale", "15 */5 * * * * *").map(|job| {
             job.set_action(move |ctx, pool| async move {
                 let http = &ctx.http;
                 let pool = &pool;
 
-                match claim_due_stale(pool, STALE_BATCH).await {
+                match claim_due_stale(pool, STALE_BATCH, me).await {
                     Ok(due) => {
                         let tags = tags(http, &due).await;
                         let tags = &tags;
@@ -108,7 +108,7 @@ impl SupportIdleStaleCron {
                     Err(e) => error!(error = ?e, "support stale sweep failed"),
                 }
 
-                match claim_cleared(pool, STALE_BATCH).await {
+                match claim_cleared(pool, STALE_BATCH, me).await {
                     Ok(cleared) => {
                         let tags = tags(http, &cleared).await;
                         let tags = &tags;

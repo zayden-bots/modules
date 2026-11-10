@@ -11,7 +11,7 @@ use serenity::all::{
 use sqlx::PgPool;
 use tracing::warn;
 use zayden_app::entitlement::EntitlementService;
-use zayden_core::parse_modal_components;
+use zayden_core::{Identity, parse_modal_components};
 
 use crate::error::{HostingError, Result};
 use crate::modal::{self, NAME_FIELD, PLAN_FIELD};
@@ -27,6 +27,7 @@ pub async fn spec_submitted(
     runtime: &HostingRuntime,
     pool: &PgPool,
     entitlements: &EntitlementService,
+    me: Identity,
 ) -> Result<()> {
     let game_key = interaction
         .data
@@ -66,6 +67,7 @@ pub async fn spec_submitted(
         price_cents: price,
         billing_source,
         claim_code: &generate_claim_code(),
+        application_id: me.application_i64(),
     })
     .await?;
 

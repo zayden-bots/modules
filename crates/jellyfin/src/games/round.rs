@@ -8,6 +8,7 @@ pub const ROUND_TTL_MINUTES: i64 = 5;
 
 #[derive(Debug, Clone)]
 pub struct NewRound<'a> {
+    pub application_id: i64,
     pub guild_id: GuildId,
     pub channel_id: GenericChannelId,
     pub started_by: UserId,
@@ -42,8 +43,8 @@ impl NewRound<'_> {
             r#"
             INSERT INTO jellyfin_game_rounds
                 (guild_id, channel_id, started_by, game, kind, answer, choices,
-                 reveal_image_url, expires_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                 reveal_image_url, expires_at, application_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING id
             "#,
             as_i64(self.guild_id.get()),
@@ -55,6 +56,7 @@ impl NewRound<'_> {
             self.choices,
             self.reveal_image_url,
             jiff_sqlx::Timestamp::from(expires_at) as jiff_sqlx::Timestamp,
+            self.application_id,
         )
         .fetch_one(pool)
         .await
