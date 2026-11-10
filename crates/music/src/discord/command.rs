@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use serenity::all::{CreateCommand, UserId};
+use serenity::all::CreateCommand;
 use songbird::Songbird;
 use zayden_core::ctx::InvocationCtx;
 use zayden_core::error::HandlerError;
@@ -43,7 +43,7 @@ impl ModuleCommand for Music {
         let music_ctx = MusicCtx::new(
             &cx.ctx.http,
             cx.interaction,
-            UserId::new(cx.app.zayden_id),
+            cx.me.user_id,
             MusicServices {
                 http: Arc::clone(&cx.ctx.http),
                 songbird,

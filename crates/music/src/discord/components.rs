@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use serenity::all::UserId;
 use songbird::Songbird;
 use zayden_core::ctx::ComponentCtx;
 use zayden_core::error::HandlerError;
@@ -45,7 +44,7 @@ impl ModuleComponent for ControlPanel {
         let ctx = PanelCtx::new(
             &cx.ctx.http,
             cx.interaction,
-            UserId::new(cx.app.zayden_id),
+            cx.me.user_id,
             PanelServices {
                 http: Arc::clone(&cx.ctx.http),
                 songbird,
@@ -93,7 +92,7 @@ impl ModuleComponent for QueuePager {
         let ctx = PanelCtx::new(
             &cx.ctx.http,
             cx.interaction,
-            UserId::new(cx.app.zayden_id),
+            cx.me.user_id,
             PanelServices {
                 http: Arc::clone(&cx.ctx.http),
                 songbird,

@@ -1,8 +1,6 @@
-use std::sync::OnceLock;
-
 use async_trait::async_trait;
 use secrecy::ExposeSecret;
-use serenity::all::{Context, CurrentUser, FullEvent, Message, UserId};
+use serenity::all::{Context, FullEvent, Message, UserId};
 use tracing::debug;
 use zayden_app::entitlement::Tier;
 use zayden_app::state::AppState;
@@ -24,12 +22,20 @@ use crate::chat::{Message as ChatMessage, Role, strip_speaker_prefix};
 use crate::openai::AiClient;
 use crate::persona::Persona;
 
-pub struct AiModule;
+pub struct AiModule {
+    persona: Persona,
+    world: &'static str,
+    user_id: UserId,
+}
 
 impl AiModule {
-    pub fn from_config(cx: &ModuleCtx<'_>) -> Result<Self, ModuleError> {
+    pub fn from_config(
+        cx: &ModuleCtx<'_>,
+        persona: Persona,
+        world: &'static str,
+    ) -> Result<Self, ModuleError> {
         require("ai", "AI_PROVIDER_KEY", cx.config.ai_provider_key.as_ref())?;
-        Ok(Self)
+        Ok(Self { persona, world, user_id: cx.me.user_id })
     }
 }
 
@@ -44,40 +50,25 @@ impl Module for AiModule {
     }
 
     fn events(&self) -> &'static [EventKind] {
-        &[EventKind::Ready, EventKind::Message]
+        &[EventKind::Message]
     }
 
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "FullEvent is non_exhaustive; unrouted kinds are ignored"
-    )]
     async fn on_event(
         &self,
         cx: &EventCtx<'_>,
         ev: &FullEvent,
     ) -> Result<(), HandlerError> {
-        match ev {
-            FullEvent::Ready { data_about_bot, .. } => {
-                Ai::identify(&data_about_bot.user);
-            },
-            FullEvent::Message { new_message, .. } => {
-                if new_message.author.bot() {
-                    return Ok(());
-                }
-                Ai::run(cx.ctx, new_message, &cx.app).await?;
-            },
-            _ => {},
+        let FullEvent::Message { new_message, .. } = ev else {
+            return Ok(());
+        };
+
+        if new_message.author.bot() {
+            return Ok(());
         }
+
+        self.run(cx.ctx, new_message, &cx.app).await?;
         Ok(())
     }
-}
-
-static IDENTITY: OnceLock<Identity> = OnceLock::new();
-
-#[derive(Debug, Clone, Copy)]
-struct Identity {
-    persona: Persona,
-    user_id: UserId,
 }
 
 struct ChatParams<'a> {
@@ -108,28 +99,14 @@ impl<'a> ChatParams<'a> {
     }
 }
 
-struct Ai;
-
-impl Ai {
-    fn identify(user: &CurrentUser) {
-        let persona = Persona::from_name(&user.name).unwrap_or_default();
-
-        if IDENTITY.set(Identity { persona, user_id: user.id }).is_ok() {
-            debug!(account = %user.name, %persona, "AI persona bound to this bot");
-        }
-    }
-
-    fn identity() -> Option<Identity> {
-        IDENTITY.get().copied()
-    }
-
-    fn is_own(message: &Message, me: Option<UserId>) -> bool {
-        message.author.bot() && me.is_none_or(|id| message.author.id == id)
+impl AiModule {
+    fn is_own(message: &Message, me: UserId) -> bool {
+        message.author.bot() && message.author.id == me
     }
 
     fn process_referenced_messages(
         msg: &Message,
-        me: Option<UserId>,
+        me: UserId,
     ) -> Vec<(Role, String)> {
         let mut contents = Vec::new();
 
@@ -151,7 +128,7 @@ impl Ai {
         contents
     }
 
-    fn attributed_content(message: &Message, me: Option<UserId>) -> String {
+    fn attributed_content(message: &Message, me: UserId) -> String {
         let parsed = Self::parse_mentions(message);
         let content = parsed.trim();
 
@@ -162,12 +139,12 @@ impl Ai {
         }
     }
 
-    fn speakers(
-        persona: Persona,
-        message: &Message,
-        me: Option<UserId>,
-    ) -> Vec<&str> {
-        let mut names = vec![persona.name()];
+    fn speakers<'a>(
+        name: &'static str,
+        message: &'a Message,
+        me: UserId,
+    ) -> Vec<&'a str> {
+        let mut names = vec![name];
         let mut next = Some(message);
 
         while let Some(message) = next {
@@ -204,19 +181,18 @@ impl Ai {
     }
 
     async fn reply(
+        &self,
         ctx: &Context,
         message: &Message,
         api_key: &str,
         endpoint: &str,
         params: &ChatParams<'_>,
     ) -> Result<(), HandlerError> {
-        let identity = Self::identity();
-        let persona = identity.map_or_else(Persona::default, |id| id.persona);
-        let me = identity.map(|id| id.user_id);
+        let me = self.user_id;
 
         let mut messages = vec![ChatMessage::new(
             Role::System,
-            persona.system_prompt(params.word_limit),
+            self.persona.system_prompt(self.world, params.word_limit),
         )];
 
         let mut history = Self::process_referenced_messages(message, me);
@@ -233,13 +209,14 @@ impl Ai {
         let client = AiClient::new(api_key, endpoint, params.model)?;
         let text = client.chat(messages, params.max_tokens, None).await?;
 
-        let speakers = Self::speakers(persona, message, me);
+        let speakers = Self::speakers(self.persona.name, message, me);
 
         message.reply(&ctx.http, strip_speaker_prefix(&text, &speakers)).await?;
         Ok(())
     }
 
     async fn run(
+        &self,
         ctx: &Context,
         message: &Message,
         app: &AppState,
@@ -297,14 +274,15 @@ impl Ai {
             "generating AI reply"
         );
 
-        if let Err(e) = Self::reply(
-            ctx,
-            message,
-            app.ai_provider_key.expose_secret(),
-            &app.ai_api_endpoint,
-            &params,
-        )
-        .await
+        if let Err(e) = self
+            .reply(
+                ctx,
+                message,
+                app.ai_provider_key.expose_secret(),
+                &app.ai_api_endpoint,
+                &params,
+            )
+            .await
         {
             tracing::error!(error = ?e, channel_id = %message.channel_id, "AI reply failed");
         }

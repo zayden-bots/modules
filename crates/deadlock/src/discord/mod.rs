@@ -11,6 +11,7 @@ use zayden_core::{
     CronResult,
     EventCtx,
     EventKind,
+    Identity,
     Module,
     ModuleCtx,
     ModuleError,
@@ -31,7 +32,7 @@ use crate::cron::{
 
 pub struct DeadlockModule {
     api: Arc<DeadlockApi>,
-    zayden_id: u64,
+    me: Identity,
 }
 
 impl DeadlockModule {
@@ -44,7 +45,7 @@ impl DeadlockModule {
             )
             .map_err(|e| ModuleError::init("deadlock", e))?,
         );
-        Ok(Self { api, zayden_id: cx.app.zayden_id })
+        Ok(Self { api, me: cx.me })
     }
 }
 
@@ -62,10 +63,22 @@ impl Module for DeadlockModule {
 
     fn cron_jobs(&self) -> Vec<CronResult> {
         vec![
-            DeadlockPatchCron::cron_job(Arc::clone(&self.api), self.zayden_id),
-            DeadlockMatchCron::cron_job(Arc::clone(&self.api), self.zayden_id),
-            DeadlockRankCron::cron_job(Arc::clone(&self.api), self.zayden_id),
-            DeadlockLeaderboardCron::cron_job(Arc::clone(&self.api), self.zayden_id),
+            DeadlockPatchCron::cron_job(
+                Arc::clone(&self.api),
+                self.me.application_id.get(),
+            ),
+            DeadlockMatchCron::cron_job(
+                Arc::clone(&self.api),
+                self.me.application_id.get(),
+            ),
+            DeadlockRankCron::cron_job(
+                Arc::clone(&self.api),
+                self.me.application_id.get(),
+            ),
+            DeadlockLeaderboardCron::cron_job(
+                Arc::clone(&self.api),
+                self.me.application_id.get(),
+            ),
             DeadlockBriefingCron::cron_job(),
             DeadlockCacheGcCron::cron_job(),
         ]

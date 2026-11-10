@@ -65,7 +65,7 @@ impl Module for HoneypotModule {
         let settings = cx.app.settings.honeypot.get(as_i64(guild_id.get())).await?;
 
         if let Some(hit) = message_create(cx.ctx, msg, &settings).await? {
-            record_hit(&cx.app, &hit).await?;
+            record_hit(&cx.app, cx.me.user_id, &hit).await?;
             return Ok(Screen::Consumed);
         }
 
@@ -95,7 +95,11 @@ impl ModuleCommand for HoneypotCmd {
     }
 }
 
-async fn record_hit(app: &Arc<AppState>, hit: &HoneypotHit) -> sqlx::Result<()> {
+async fn record_hit(
+    app: &Arc<AppState>,
+    moderator_id: UserId,
+    hit: &HoneypotHit,
+) -> sqlx::Result<()> {
     let kind = match hit.outcome {
         HoneypotOutcome::SoftBanned => InfractionKind::SoftBan,
         HoneypotOutcome::BanStanding => InfractionKind::Ban,
@@ -106,7 +110,7 @@ async fn record_hit(app: &Arc<AppState>, hit: &HoneypotHit) -> sqlx::Result<()> 
         target_id: hit.user_id,
         target_username: &hit.username,
         kind,
-        moderator_id: UserId::new(app.zayden_id),
+        moderator_id,
         moderator_username: HONEYPOT_MODERATOR,
         points: HONEYPOT_POINTS,
         reason: BAN_REASON,

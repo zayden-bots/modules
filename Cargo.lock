@@ -5135,7 +5135,6 @@ dependencies = [
 [[package]]
 name = "schema"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/schema#f6064db52ea2c61513b321dfc7e31bb86c87e0b7"
 dependencies = [
  "sqlx",
 ]
@@ -7682,11 +7681,10 @@ dependencies = [
 [[package]]
 name = "zayden-app"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/platform#25a55f0207ab8ff97ff200889d866eba4bd87840"
 dependencies = [
  "async-trait",
  "aws-lc-rs",
- "base64 0.23.1",
+ "base64 0.22.1",
  "jiff",
  "jiff-sqlx",
  "metrics",
@@ -7696,7 +7694,7 @@ dependencies = [
  "secrecy",
  "serde",
  "sqlx",
- "thiserror 2.0.21",
+ "thiserror 1.0.69",
  "tokio",
  "toml",
  "tracing",
@@ -7705,10 +7703,9 @@ dependencies = [
 [[package]]
 name = "zayden-core"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/platform#25a55f0207ab8ff97ff200889d866eba4bd87840"
 dependencies = [
  "async-trait",
- "base64 0.23.1",
+ "base64 0.22.1",
  "dashmap",
  "jiff",
  "jiff-cron",
@@ -7718,7 +7715,7 @@ dependencies = [
  "serde_json",
  "serenity",
  "sqlx",
- "thiserror 2.0.21",
+ "thiserror 1.0.69",
  "tokio",
  "tracing",
  "zayden-app",
@@ -7727,7 +7724,6 @@ dependencies = [
 [[package]]
 name = "zayden-graphics"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/platform#25a55f0207ab8ff97ff200889d866eba4bd87840"
 dependencies = [
  "png",
  "resvg",
@@ -7883,3 +7879,7 @@ checksum = "27bc9d5b815bc103f142aa054f561d9187d191692ec7c2d1e2b4737f8dbd7296"
 dependencies = [
  "zune-core",
 ]
+
+[[patch.unused]]
+name = "bot-runtime"
+version = "1.0.0"
