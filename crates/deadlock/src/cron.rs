@@ -5,6 +5,7 @@ use deadlock_api::DeadlockApiError;
 use jiff::Timestamp;
 use sqlx::PgPool;
 use tracing::{debug, error, info, warn};
+use zayden_app::tasks::{PLATFORM_STALE_AFTER, ScheduledTasks};
 use zayden_core::{CronCtx, WorkerJob, WorkerJobResult};
 
 use crate::announce::announce_ready;
@@ -15,7 +16,7 @@ use crate::error::DeadlockError;
 use crate::match_poll::{self, SummaryJob};
 use crate::patch_watch::{self, WatchOutcome};
 use crate::rank_poll::{self, SquadEvent};
-use crate::{gc, squad_deliver};
+use crate::{gc, squad_deliver, tasks};
 
 #[derive(Debug, Default)]
 pub struct RunGuard(AtomicBool);
@@ -239,6 +240,21 @@ impl DeadlockCacheGcCron {
                 match gc::run(&cx.db, Timestamp::now()).await {
                     Ok(outcome) => info!(?outcome, "deadlock: cache gc finished"),
                     Err(e) => error!(error = ?e, "deadlock: cache gc failed"),
+                }
+
+                match ScheduledTasks::purge_unclaimed(
+                    &cx.db,
+                    &[tasks::LEADERBOARD],
+                    PLATFORM_STALE_AFTER,
+                )
+                .await
+                {
+                    Ok(purged) => {
+                        info!(purged, "deadlock: stale leaderboard tasks purged");
+                    },
+                    Err(e) => {
+                        error!(error = ?e, "deadlock: leaderboard task gc failed");
+                    },
                 }
             })
         })

@@ -7,15 +7,15 @@ use futures::StreamExt;
 use serenity::all::{ApplicationId, ChannelId, CreateComponent, MessageId};
 use sqlx::PgPool;
 use tracing::warn;
-use zayden_core::{CronCtx, Delivered, Edited, Post};
+use zayden_core::{CronCtx, Edited, Post, PostPayload};
 
 use crate::client::DeadlockApi;
 use crate::db::players;
 use crate::db::squad_channel::{self, SquadTarget};
-use crate::embeds;
-use crate::error::Result;
+use crate::error::{DeadlockError, Result};
 use crate::rank_poll::SquadEvent;
 use crate::squad::{LeaderboardEntry, order_leaderboard};
+use crate::{embeds, tasks};
 
 const CONCURRENCY: usize = 5;
 
@@ -129,22 +129,27 @@ pub async fn post_leaderboards(cx: &CronCtx, api: &DeadlockApi) -> Result<usize>
         let message = embeds::leaderboard_create(component);
 
         if let Some(message_id) = row.leaderboard_message_id.filter(|id| *id != 0) {
+            let message_id = MessageId::new(message_id.cast_unsigned());
             let edited = cx
                 .webhooks
-                .edit(
-                    channel,
-                    application_id,
-                    MessageId::new(message_id.cast_unsigned()),
-                    &message,
-                )
+                .try_edit(channel, application_id, message_id, &message)
                 .await;
 
             match edited {
-                Ok(Edited::Done | Edited::Queued) => {
+                Ok(Some(Edited::Done)) => {
                     sent += 1;
                     continue;
                 },
-                Ok(Edited::Missing) => {},
+                Ok(Some(Edited::Missing)) => {},
+                Ok(None | Some(Edited::Queued)) => {
+                    let payload =
+                        PostPayload::new(channel, Some(message_id), &message)
+                            .map_err(encode_error)?;
+                    tasks::queue(pool, application_id, row.guild_id, payload)
+                        .await?;
+                    sent += 1;
+                    continue;
+                },
                 Err(e) => {
                     warn!(
                         error = ?e,
@@ -155,8 +160,8 @@ pub async fn post_leaderboards(cx: &CronCtx, api: &DeadlockApi) -> Result<usize>
             }
         }
 
-        match cx.webhooks.send(channel, application_id, &message).await {
-            Ok(Delivered::Webhook(id)) => {
+        match cx.webhooks.try_send(channel, application_id, &message).await {
+            Ok(Some(id)) => {
                 squad_channel::set_leaderboard_message(
                     pool,
                     row.guild_id,
@@ -165,7 +170,12 @@ pub async fn post_leaderboards(cx: &CronCtx, api: &DeadlockApi) -> Result<usize>
                 .await?;
                 sent += 1;
             },
-            Ok(Delivered::Queued) => sent += 1,
+            Ok(None) => {
+                let payload = PostPayload::new(channel, None, &message)
+                    .map_err(encode_error)?;
+                tasks::queue(pool, application_id, row.guild_id, payload).await?;
+                sent += 1;
+            },
             Err(e) => warn!(
                 error = ?e,
                 guild_id = row.guild_id,
@@ -175,6 +185,10 @@ pub async fn post_leaderboards(cx: &CronCtx, api: &DeadlockApi) -> Result<usize>
     }
 
     Ok(sent)
+}
+
+const fn encode_error(source: serde_json::Error) -> DeadlockError {
+    DeadlockError::Encode { what: "leaderboard post", source }
 }
 
 async fn post(

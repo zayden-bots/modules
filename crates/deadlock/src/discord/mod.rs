@@ -6,6 +6,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serenity::all::FullEvent;
 use tracing::debug;
+use zayden_app::tasks::Task;
+use zayden_core::ctx::TaskCtx;
 use zayden_core::error::HandlerError;
 use zayden_core::{
     EventCtx,
@@ -18,8 +20,8 @@ use zayden_core::{
     as_i64,
 };
 
-use crate::DeadlockApi;
 use crate::worker::api_from_config;
+use crate::{DeadlockApi, tasks};
 
 pub struct DeadlockModule {
     api: Arc<DeadlockApi>,
@@ -68,5 +70,17 @@ impl Module for DeadlockModule {
         }
 
         Ok(())
+    }
+
+    fn task_kinds(&self) -> &'static [&'static str] {
+        &[tasks::LEADERBOARD]
+    }
+
+    async fn run_task(
+        &self,
+        cx: &TaskCtx<'_>,
+        task: &Task,
+    ) -> Result<(), HandlerError> {
+        tasks::run(&cx.ctx.http, &cx.app.db, task).await.map_err(HandlerError::new)
     }
 }

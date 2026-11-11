@@ -5277,6 +5277,7 @@ dependencies = [
 [[package]]
 name = "schema"
 version = "1.0.0"
+source = "git+https://github.com/zayden-bots/schema#ae2c1d0547b7b743c9e15966e3f5ca782c3cfba3"
 dependencies = [
  "sqlx",
 ]
@@ -7784,6 +7785,7 @@ dependencies = [
 [[package]]
 name = "zayden-app"
 version = "1.0.0"
+source = "git+https://github.com/zayden-bots/platform#990b2184b0f34f855e50202b2cad97eaadc85929"
 dependencies = [
  "async-trait",
  "aws-lc-rs",
@@ -7807,6 +7809,7 @@ dependencies = [
 [[package]]
 name = "zayden-core"
 version = "1.0.0"
+source = "git+https://github.com/zayden-bots/platform#990b2184b0f34f855e50202b2cad97eaadc85929"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -7830,6 +7833,7 @@ dependencies = [
 [[package]]
 name = "zayden-graphics"
 version = "1.0.0"
+source = "git+https://github.com/zayden-bots/platform#990b2184b0f34f855e50202b2cad97eaadc85929"
 dependencies = [
  "png",
  "resvg",
@@ -7985,7 +7989,3 @@ checksum = "27bc9d5b815bc103f142aa054f561d9187d191692ec7c2d1e2b4737f8dbd7296"
 dependencies = [
  "zune-core",
 ]
-
-[[patch.unused]]
-name = "bot-runtime"
-version = "1.0.0"

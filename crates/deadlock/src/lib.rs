@@ -20,6 +20,7 @@ pub mod rank_poll;
 pub mod squad;
 pub mod squad_deliver;
 pub mod summary;
+pub mod tasks;
 mod worker;
 
 pub use client::DeadlockApi;
