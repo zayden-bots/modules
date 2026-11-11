@@ -5507,7 +5507,7 @@ dependencies = [
 [[package]]
 name = "serenity"
 version = "0.12.5"
-source = "git+https://github.com/serenity-rs/serenity?branch=next#beab1f155b0619d0d005db46cd0ec7d2225e381a"
+source = "git+https://github.com/serenity-rs/serenity?branch=next#6aea26edf6da67d2699c40bc7c384cdaa62f126d"
 dependencies = [
  "aformat",
  "arrayvec",
@@ -7785,7 +7785,7 @@ dependencies = [
 [[package]]
 name = "zayden-app"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/platform#e2bf71000699ce03221683504ea7348d2706fdf9"
+source = "git+https://github.com/zayden-bots/platform#fc58d2939f85e385a18a656522f72717ff0e4c67"
 dependencies = [
  "async-trait",
  "aws-lc-rs",
@@ -7809,7 +7809,7 @@ dependencies = [
 [[package]]
 name = "zayden-core"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/platform#e2bf71000699ce03221683504ea7348d2706fdf9"
+source = "git+https://github.com/zayden-bots/platform#fc58d2939f85e385a18a656522f72717ff0e4c67"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -7833,7 +7833,7 @@ dependencies = [
 [[package]]
 name = "zayden-graphics"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/platform#e2bf71000699ce03221683504ea7348d2706fdf9"
+source = "git+https://github.com/zayden-bots/platform#fc58d2939f85e385a18a656522f72717ff0e4c67"
 dependencies = [
  "png",
  "resvg",
