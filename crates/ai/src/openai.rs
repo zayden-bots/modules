@@ -36,6 +36,15 @@ impl AiClient {
     pub const ERROR_CONTENT_LIMIT: usize = 512;
 
     pub fn new(api_key: &str, endpoint: &str, model: &str) -> Result<Self, Error> {
+        Self::with_title(api_key, endpoint, model, APP_TITLE)
+    }
+
+    pub fn with_title(
+        api_key: &str,
+        endpoint: &str,
+        model: &str,
+        title: &'static str,
+    ) -> Result<Self, Error> {
         let config =
             OpenAIConfig::new().with_api_key(api_key).with_api_base(endpoint);
 
@@ -46,7 +55,8 @@ impl AiClient {
         );
         headers.insert(
             HeaderName::from_static("x-title"),
-            HeaderValue::from_static(APP_TITLE),
+            HeaderValue::from_str(title)
+                .unwrap_or_else(|_| HeaderValue::from_static(APP_TITLE)),
         );
 
         let http_client = reqwest::ClientBuilder::new()

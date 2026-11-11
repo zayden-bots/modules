@@ -206,7 +206,12 @@ impl AiModule {
             Self::attributed_content(message, me),
         ));
 
-        let client = AiClient::new(api_key, endpoint, params.model)?;
+        let client = AiClient::with_title(
+            api_key,
+            endpoint,
+            params.model,
+            self.persona.name,
+        )?;
         let text = client.chat(messages, params.max_tokens, None).await?;
 
         let speakers = Self::speakers(self.persona.name, message, me);
