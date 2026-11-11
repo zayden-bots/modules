@@ -20,6 +20,7 @@ mod level_reward;
 pub mod models;
 pub mod stamina;
 pub mod utils;
+mod worker;
 
 pub use commands::Commands;
 pub use commands::craft::{CraftCommit, CraftDelta, CraftManager, CraftRow};
@@ -84,6 +85,7 @@ pub use models::{
     out_of_stamina,
 };
 pub use stamina::{StaminaCron, StaminaManager};
+pub use worker::GamblingWorker;
 
 const START_AMOUNT: i64 = 1000;
 const GEM: char = '💎';

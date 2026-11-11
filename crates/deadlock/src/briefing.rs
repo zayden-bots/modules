@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
 
 use jiff::{SignedDuration, Timestamp};
-use serenity::all::{Http, UserId};
-use sqlx::PgPool;
-use tracing::warn;
+use serenity::all::{ApplicationId, UserId};
+use zayden_core::{CronCtx, queue_dm};
 
 use crate::db::briefings::{self, RecentHero};
 use crate::db::patches;
@@ -19,6 +18,7 @@ pub const MAX_HEROES: usize = 3;
 pub struct Recipient {
     pub discord_id: i64,
     pub hero_ids: Vec<u32>,
+    pub dm_application_id: Option<i64>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -53,19 +53,23 @@ pub fn recipients(recent: &[RecentHero], diff: &PatchDiff) -> Vec<Recipient> {
                 })
                 .collect();
 
-            (!hero_ids.is_empty()).then_some(Recipient { discord_id, hero_ids })
+            let dm_application_id =
+                rows.first().and_then(|row| row.dm_application_id);
+
+            (!hero_ids.is_empty()).then_some(Recipient {
+                discord_id,
+                hero_ids,
+                dm_application_id,
+            })
         })
         .collect()
 }
 
-pub async fn run(
-    http: &Http,
-    pool: &PgPool,
-    now: Timestamp,
-) -> Result<BriefingOutcome> {
+pub async fn run(cx: &CronCtx, now: Timestamp) -> Result<BriefingOutcome> {
+    let pool = &cx.db;
     let since = now.checked_sub(BRIEFING_WINDOW).unwrap_or(Timestamp::MIN);
     let mut outcome = BriefingOutcome::default();
-    let mut first = true;
+    let mut index: u32 = 0;
 
     for patch in patches::awaiting_briefing(pool, since).await? {
         let Some(diff) = patch.diff.as_ref().filter(|diff| !diff.heroes.is_empty())
@@ -92,22 +96,27 @@ pub async fn run(
                 continue;
             }
 
-            if !first {
-                tokio::time::sleep(deliver::DM_INTERVAL).await;
-            }
-            first = false;
-
-            let message = embeds::briefing_dm(&patch, &recipient.hero_ids);
+            let post = embeds::briefing_dm(&patch, &recipient.hero_ids);
             let user = UserId::new(recipient.discord_id.cast_unsigned());
+            let target = recipient.dm_application_id.map_or_else(
+                || ApplicationId::new(cx.app.zayden_id),
+                |id| ApplicationId::new(id.cast_unsigned()),
+            );
+            let run_at = now
+                .checked_add(deliver::DM_INTERVAL.saturating_mul(index))
+                .unwrap_or(now);
+            index = index.saturating_add(1);
 
-            match user.direct_message(http, message).await {
-                Ok(_) => outcome.sent += 1,
-                Err(e) => warn!(
-                    error = ?e,
-                    discord_id = recipient.discord_id,
-                    "deadlock: failed to DM a patch briefing; it is not retried"
-                ),
-            }
+            queue_dm(
+                pool,
+                target,
+                user,
+                format!("deadlock:briefing:{}:{}", patch.guid, recipient.discord_id),
+                run_at,
+                &post,
+            )
+            .await?;
+            outcome.sent += 1;
         }
 
         patches::mark_briefed(pool, &patch.guid).await?;

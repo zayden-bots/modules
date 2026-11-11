@@ -37,3 +37,13 @@ VALUES
     (1, 1001, FALSE),
     (2, 1002, TRUE),
     (4, 1004, FALSE);
+
+INSERT INTO applications (application_id, slot, kind, bot_user_id, name)
+VALUES (1000, 'zayden', 'default', 1001, 'Zayden');
+
+INSERT INTO guild_presence (guild_id, application_id, left_at)
+VALUES
+    (1, 1000, NULL),
+    (2, 1000, NULL),
+    (3, 1000, NULL),
+    (4, 1000, NULL);

@@ -20,7 +20,9 @@ pub mod rank_poll;
 pub mod squad;
 pub mod squad_deliver;
 pub mod summary;
+mod worker;
 
 pub use client::DeadlockApi;
 pub use discord::DeadlockModule;
 pub use error::{DeadlockError, Result};
+pub use worker::DeadlockWorker;

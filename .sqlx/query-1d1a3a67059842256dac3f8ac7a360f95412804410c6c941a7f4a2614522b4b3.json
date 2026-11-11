@@ -1,0 +1,71 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT a.guild_id, a.channel_id, a.message, a.ping_role_ids,\n                   delivery_application(a.guild_id, a.delivery_application_id) AS \"application_id!\"\n            FROM youtube_announce a\n            JOIN youtube_connections o ON o.guild_id = a.guild_id\n            WHERE o.channel_id = $1\n              AND delivery_application(a.guild_id, a.delivery_application_id) IS NOT NULL\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "youtube_announce",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "youtube_announce",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "message",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "youtube_announce",
+            "name": "message"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "ping_role_ids",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "youtube_announce",
+            "name": "ping_role_ids"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "application_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "1d1a3a67059842256dac3f8ac7a360f95412804410c6c941a7f4a2614522b4b3"
+}

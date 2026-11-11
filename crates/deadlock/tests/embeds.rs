@@ -369,7 +369,7 @@ fn summary_post_mentions_the_player_without_pinging() {
 
     let message =
         embeds::summary_post(&[(&first, 123), (&second, 456)], &index, &items);
-    let json = serde_json::to_string(&message).unwrap_or_default();
+    let json = serde_json::to_string(&message.to_message()).unwrap_or_default();
 
     assert!(json.contains("<@123>"));
     assert!(json.contains("<@456>"));
@@ -383,7 +383,7 @@ fn summary_dm_is_a_components_message_without_a_mention() {
     let items = items().unwrap();
 
     let message = embeds::summary_dm(&summary(1, true, true), None, &items);
-    let json = serde_json::to_string(&message).unwrap_or_default();
+    let json = serde_json::to_string(&message.to_message()).unwrap_or_default();
 
     assert!(json.contains("Victory"));
     assert!(!json.contains("<@"));

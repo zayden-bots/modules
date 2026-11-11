@@ -4,18 +4,10 @@ use std::collections::{BTreeMap, HashMap};
 use deadlock_api::Priority;
 use deadlock_api::model::Rank;
 use futures::StreamExt;
-use serenity::all::{
-    ChannelId,
-    CreateAllowedMentions,
-    CreateComponent,
-    CreateMessage,
-    EditMessage,
-    Http,
-    MessageFlags,
-    MessageId,
-};
+use serenity::all::{ApplicationId, ChannelId, CreateComponent, MessageId};
 use sqlx::PgPool;
 use tracing::warn;
+use zayden_core::{CronCtx, Delivered, Edited, Post};
 
 use crate::client::DeadlockApi;
 use crate::db::players;
@@ -59,35 +51,28 @@ pub async fn leaderboard_message(
 }
 
 pub async fn deliver(
-    http: &Http,
-    pool: &PgPool,
+    cx: &CronCtx,
     api: &DeadlockApi,
-    application_id: i64,
-    slot: &str,
     events: Vec<SquadEvent>,
 ) -> Result<usize> {
     let mut targets: HashMap<i64, Vec<SquadTarget>> = HashMap::new();
-    let mut by_guild: BTreeMap<i64, (i64, Vec<SquadEvent>)> = BTreeMap::new();
+    let mut by_guild: BTreeMap<i64, (i64, ApplicationId, Vec<SquadEvent>)> =
+        BTreeMap::new();
 
     for event in events {
         let found = match targets.entry(event.discord_id) {
             Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => entry.insert(
-                squad_channel::targets_for(
-                    pool,
-                    event.discord_id,
-                    application_id,
-                    slot,
-                )
-                .await?,
-            ),
+            Entry::Vacant(entry) => entry
+                .insert(squad_channel::targets_for(&cx.db, event.discord_id).await?),
         };
 
         for target in found.iter() {
             by_guild
                 .entry(target.guild_id)
-                .or_insert_with(|| (target.channel_id, Vec::new()))
-                .1
+                .or_insert_with(|| {
+                    (target.channel_id, target.application_id, Vec::new())
+                })
+                .2
                 .push(event);
         }
     }
@@ -99,13 +84,13 @@ pub async fn deliver(
     let ranks = rank_names(api).await;
     let mut posts = Vec::new();
 
-    for (guild_id, (channel_id, guild_events)) in by_guild {
+    for (guild_id, (channel_id, application_id, guild_events)) in by_guild {
         if channel_id == 0 {
             continue;
         }
 
         let message = embeds::squad_post(&guild_events, &ranks);
-        posts.push(post(http, guild_id, channel_id, message));
+        posts.push(post(cx, guild_id, channel_id, application_id, message));
     }
 
     let sent = futures::stream::iter(posts)
@@ -116,15 +101,9 @@ pub async fn deliver(
     Ok(sent.into_iter().filter(|ok| *ok).count())
 }
 
-pub async fn post_leaderboards(
-    http: &Http,
-    pool: &PgPool,
-    api: &DeadlockApi,
-    application_id: i64,
-    slot: &str,
-) -> Result<usize> {
-    let guilds =
-        squad_channel::leaderboard_guilds(pool, application_id, slot).await?;
+pub async fn post_leaderboards(cx: &CronCtx, api: &DeadlockApi) -> Result<usize> {
+    let pool = &cx.db;
+    let guilds = squad_channel::leaderboard_guilds(pool).await?;
     if guilds.is_empty() {
         return Ok(0);
     }
@@ -132,7 +111,10 @@ pub async fn post_leaderboards(
     let ranks = rank_names(api).await;
     let mut sent = 0;
 
-    for row in guilds {
+    for target in guilds {
+        let row = target.channel;
+        let application_id = target.application_id;
+
         if row.channel_id == 0 {
             continue;
         }
@@ -143,41 +125,47 @@ pub async fn post_leaderboards(
         }
 
         let component = embeds::leaderboard_component(&entries, &ranks);
-        let channel = ChannelId::new(row.channel_id.cast_unsigned()).widen();
+        let channel = ChannelId::new(row.channel_id.cast_unsigned());
+        let message = embeds::leaderboard_create(component);
 
         if let Some(message_id) = row.leaderboard_message_id.filter(|id| *id != 0) {
-            let edit = EditMessage::new()
-                .flags(MessageFlags::IS_COMPONENTS_V2)
-                .components(vec![component.clone()])
-                .allowed_mentions(CreateAllowedMentions::new());
+            let edited = cx
+                .webhooks
+                .edit(
+                    channel,
+                    application_id,
+                    MessageId::new(message_id.cast_unsigned()),
+                    &message,
+                )
+                .await;
 
-            match channel
-                .edit_message(http, MessageId::new(message_id.cast_unsigned()), edit)
-                .await
-            {
-                Ok(_) => {
+            match edited {
+                Ok(Edited::Done | Edited::Queued) => {
                     sent += 1;
                     continue;
                 },
-                Err(e) => warn!(
-                    error = ?e,
-                    guild_id = row.guild_id,
-                    "deadlock: failed to edit the squad leaderboard; posting a new one"
-                ),
+                Ok(Edited::Missing) => {},
+                Err(e) => {
+                    warn!(
+                        error = ?e,
+                        guild_id = row.guild_id,
+                        "deadlock: failed to edit the squad leaderboard; posting a new one"
+                    );
+                },
             }
         }
 
-        match channel.send_message(http, embeds::leaderboard_create(component)).await
-        {
-            Ok(message) => {
+        match cx.webhooks.send(channel, application_id, &message).await {
+            Ok(Delivered::Webhook(id)) => {
                 squad_channel::set_leaderboard_message(
                     pool,
                     row.guild_id,
-                    message.id.get().cast_signed(),
+                    id.get().cast_signed(),
                 )
                 .await?;
                 sent += 1;
             },
+            Ok(Delivered::Queued) => sent += 1,
             Err(e) => warn!(
                 error = ?e,
                 guild_id = row.guild_id,
@@ -190,14 +178,15 @@ pub async fn post_leaderboards(
 }
 
 async fn post(
-    http: &Http,
+    cx: &CronCtx,
     guild_id: i64,
     channel_id: i64,
-    message: CreateMessage<'static>,
+    application_id: ApplicationId,
+    message: Post<'static>,
 ) -> bool {
     let channel = ChannelId::new(channel_id.cast_unsigned());
 
-    match channel.widen().send_message(http, message).await {
+    match cx.webhooks.send(channel, application_id, &message).await {
         Ok(_) => true,
         Err(e) => {
             warn!(

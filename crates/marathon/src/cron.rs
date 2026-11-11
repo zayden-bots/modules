@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use futures::future;
 use reqwest::Client;
-use serenity::all::{ChannelId, CreateMessage, MessageFlags};
+use serenity::all::ChannelId;
 use sqlx::PgPool;
 use tracing::{debug, error, warn};
-use zayden_core::{CronJob, as_u64};
+use zayden_core::{Post, WorkerJob, as_u64};
 
-use crate::announce::{MarathonAnnounceRow, NewsSeenRow};
+use crate::announce::{MarathonAnnounceRow, MarathonTarget, NewsSeenRow};
 use crate::client::MarathonClient;
 use crate::embeds;
 use crate::model::NewsItem;
@@ -23,13 +23,14 @@ use crate::news::{
 pub struct MarathonAnnounceCron;
 
 impl MarathonAnnounceCron {
-    pub fn cron_job(
+    pub fn worker_job(
         client: Arc<MarathonClient>,
-    ) -> Result<CronJob, jiff_cron::error::Error> {
-        CronJob::new("marathon_schedule_announce", "0 0 17,18 * * Sun,Thu *").map(|job| {
-            job.set_action(move |ctx, pool| {
+    ) -> Result<WorkerJob, jiff_cron::error::Error> {
+        WorkerJob::new("marathon_schedule_announce", "0 0 17,18 * * Sun,Thu *").map(|job| {
+            job.set_action(move |cx| {
                 let client = Arc::clone(&client);
                 async move {
+                    let pool = cx.db.clone();
                     let schedule = match client.schedule() {
                         Ok(schedule) => schedule,
                         Err(e) => {
@@ -39,8 +40,8 @@ impl MarathonAnnounceCron {
                     };
                     let rotation_key = format!("{schedule:?}");
 
-                    let rows = match MarathonAnnounceRow::all(&pool).await {
-                        Ok(rows) => rows,
+                    let targets = match MarathonAnnounceRow::targets(&pool).await {
+                        Ok(targets) => targets,
                         Err(e) => {
                             error!(error = ?e, "marathon: failed to load announce rows");
                             return;
@@ -49,19 +50,18 @@ impl MarathonAnnounceCron {
 
                     let component = embeds::schedule_component(&schedule);
 
-                    for row in rows {
+                    for MarathonTarget { row, application_id } in targets {
                         if row.last_rotation.as_deref() == Some(rotation_key.as_str()) {
                             continue;
                         }
 
                         let channel_id = ChannelId::new(as_u64(row.channel_id));
-                        if let Err(e) = channel_id
-                            .widen()
-                            .send_message(
-                                &ctx.http,
-                                CreateMessage::new()
-                                    .flags(MessageFlags::IS_COMPONENTS_V2)
-                                    .components(vec![component.clone()]),
+                        if let Err(e) = cx
+                            .webhooks
+                            .send(
+                                channel_id,
+                                application_id,
+                                &Post::components_v2(vec![component.clone()]),
                             )
                             .await
                         {
@@ -170,24 +170,24 @@ async fn poll_feeds(
 pub struct MarathonNewsCron;
 
 impl MarathonNewsCron {
-    pub fn cron_job(
+    pub fn worker_job(
         client: Client,
         bungie_api_key: Option<String>,
-    ) -> Result<CronJob, jiff_cron::error::Error> {
-        CronJob::new("marathon_news_announce", "0 0,30 * * * * *").map(|job| {
-            job.set_action(move |ctx, pool| {
+    ) -> Result<WorkerJob, jiff_cron::error::Error> {
+        WorkerJob::new("marathon_news_announce", "0 0,30 * * * * *").map(|job| {
+            job.set_action(move |cx| {
                 let client = client.clone();
                 let bungie_api_key = bungie_api_key.clone();
                 async move {
                     let new_items =
-                        poll_feeds(&pool, &client, bungie_api_key.as_deref()).await;
+                        poll_feeds(&cx.db, &client, bungie_api_key.as_deref()).await;
 
                     if new_items.is_empty() {
                         return;
                     }
 
-                    let rows = match MarathonAnnounceRow::all(&pool).await {
-                        Ok(rows) => rows,
+                    let targets = match MarathonAnnounceRow::targets(&cx.db).await {
+                        Ok(targets) => targets,
                         Err(e) => {
                             error!(error = ?e, "marathon: failed to load announce rows");
                             return;
@@ -197,15 +197,14 @@ impl MarathonNewsCron {
                     for item in new_items.iter().rev() {
                         let component = embeds::news_item_component(item);
 
-                        for row in &rows {
+                        for MarathonTarget { row, application_id } in &targets {
                             let channel_id = ChannelId::new(as_u64(row.channel_id));
-                            if let Err(e) = channel_id
-                                .widen()
-                                .send_message(
-                                    &ctx.http,
-                                    CreateMessage::new()
-                                        .flags(MessageFlags::IS_COMPONENTS_V2)
-                                        .components(vec![component.clone()]),
+                            if let Err(e) = cx
+                                .webhooks
+                                .send(
+                                    channel_id,
+                                    *application_id,
+                                    &Post::components_v2(vec![component.clone()]),
                                 )
                                 .await
                             {

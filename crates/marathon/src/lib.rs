@@ -15,5 +15,7 @@ pub mod source;
 pub mod transport;
 
 mod discord;
+mod worker;
 
 pub use discord::MarathonModule;
+pub use worker::MarathonWorker;

@@ -8,6 +8,7 @@ pub struct RecentHero {
     pub hero_id: u32,
     pub games: i64,
     pub last_played: Timestamp,
+    pub dm_application_id: Option<i64>,
 }
 
 struct RecentRecord {
@@ -15,6 +16,7 @@ struct RecentRecord {
     hero_id: i32,
     games: i64,
     last_played: jiff_sqlx::Timestamp,
+    dm_application_id: Option<i64>,
 }
 
 impl RecentRecord {
@@ -24,6 +26,7 @@ impl RecentRecord {
             hero_id: u32::try_from(self.hero_id).ok()?,
             games: self.games,
             last_played: self.last_played.to_jiff(),
+            dm_application_id: self.dm_application_id,
         })
     }
 }
@@ -44,7 +47,8 @@ pub async fn recent_heroes(
         SELECT p.discord_id,
                m.hero_id,
                count(*) AS "games!",
-               max(m.start_time) AS "last_played!: jiff_sqlx::Timestamp"
+               max(m.start_time) AS "last_played!: jiff_sqlx::Timestamp",
+               serving_application(s.opt_in_guild_id, 'zayden') AS dm_application_id
         FROM deadlock_players p
         JOIN deadlock_matches_seen m ON m.account_id = p.account_id
         LEFT JOIN deadlock_user_settings s ON s.discord_id = p.discord_id
@@ -59,7 +63,7 @@ pub async fn recent_heroes(
               SELECT 1 FROM deadlock_briefings_sent b
               WHERE b.patch_guid = $1 AND b.discord_id = p.discord_id
           )
-        GROUP BY p.discord_id, m.hero_id
+        GROUP BY p.discord_id, m.hero_id, s.opt_in_guild_id
         ORDER BY p.discord_id, m.hero_id
         "#,
         patch_guid,

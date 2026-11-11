@@ -18,6 +18,7 @@ pub struct Claimed {
     pub claim_code: String,
     pub has_paid: bool,
     pub expires_at: Option<jiff_sqlx::Timestamp>,
+    pub dm_application_id: Option<i64>,
 }
 
 impl Claimed {
@@ -68,7 +69,8 @@ pub async fn claim_expired(
             s.id, s.owner_id, s.game_key, s.plan, s.pelican_server_id,
             s.price_cents, s.billing_source, s.claim_code,
             s.paid_until IS NOT NULL AS "has_paid!",
-            coalesce(s.paid_until, s.trial_ends_at) AS "expires_at: jiff_sqlx::Timestamp"
+            coalesce(s.paid_until, s.trial_ends_at) AS "expires_at: jiff_sqlx::Timestamp",
+            serving_application(s.guild_id, 'zayden') AS dm_application_id
         "#,
         limit,
         grace_days
@@ -107,7 +109,8 @@ pub async fn convert_included_trials(
             s.id, s.owner_id, s.game_key, s.plan, s.pelican_server_id,
             s.price_cents, s.billing_source, s.claim_code,
             s.paid_until IS NOT NULL AS "has_paid!",
-            coalesce(s.paid_until, s.trial_ends_at) AS "expires_at: jiff_sqlx::Timestamp"
+            coalesce(s.paid_until, s.trial_ends_at) AS "expires_at: jiff_sqlx::Timestamp",
+            serving_application(s.guild_id, 'zayden') AS dm_application_id
         "#,
         limit
     )
@@ -125,7 +128,8 @@ pub async fn entitlement_backed(pool: &PgPool, limit: i64) -> Result<Vec<Claimed
             s.id, s.owner_id, s.game_key, s.plan, s.pelican_server_id,
             s.price_cents, s.billing_source, s.claim_code,
             s.paid_until IS NOT NULL AS "has_paid!",
-            coalesce(s.paid_until, s.trial_ends_at) AS "expires_at: jiff_sqlx::Timestamp"
+            coalesce(s.paid_until, s.trial_ends_at) AS "expires_at: jiff_sqlx::Timestamp",
+            serving_application(s.guild_id, 'zayden') AS dm_application_id
         FROM hosted_servers s
         WHERE s.state = 'active' AND s.billing_source = 'entitlement'
         ORDER BY s.id
@@ -185,7 +189,8 @@ pub async fn claim_reminders(
             s.id, s.owner_id, s.game_key, s.plan, s.pelican_server_id,
             s.price_cents, s.billing_source, s.claim_code,
             s.paid_until IS NOT NULL AS "has_paid!",
-            coalesce(s.paid_until, s.trial_ends_at) AS "expires_at: jiff_sqlx::Timestamp"
+            coalesce(s.paid_until, s.trial_ends_at) AS "expires_at: jiff_sqlx::Timestamp",
+            serving_application(s.guild_id, 'zayden') AS dm_application_id
         "#,
         limit,
         reminder_days
@@ -219,7 +224,8 @@ pub async fn claim_deletions(pool: &PgPool, limit: i64) -> Result<Vec<Claimed>> 
             s.id, s.owner_id, s.game_key, s.plan, s.pelican_server_id,
             s.price_cents, s.billing_source, s.claim_code,
             s.paid_until IS NOT NULL AS "has_paid!",
-            coalesce(s.paid_until, s.trial_ends_at) AS "expires_at: jiff_sqlx::Timestamp"
+            coalesce(s.paid_until, s.trial_ends_at) AS "expires_at: jiff_sqlx::Timestamp",
+            serving_application(s.guild_id, 'zayden') AS dm_application_id
         "#,
         limit
     )
@@ -251,7 +257,8 @@ pub async fn claim_unsuspends(pool: &PgPool, limit: i64) -> Result<Vec<Claimed>>
             s.id, s.owner_id, s.game_key, s.plan, s.pelican_server_id,
             s.price_cents, s.billing_source, s.claim_code,
             s.paid_until IS NOT NULL AS "has_paid!",
-            coalesce(s.paid_until, s.trial_ends_at) AS "expires_at: jiff_sqlx::Timestamp"
+            coalesce(s.paid_until, s.trial_ends_at) AS "expires_at: jiff_sqlx::Timestamp",
+            serving_application(s.guild_id, 'zayden') AS dm_application_id
         "#,
         limit
     )

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use reqwest::Client;
 use sqlx::PgPool;
 use tracing::{debug, error, info, warn};
-use zayden_core::CronJob;
+use zayden_core::WorkerJob;
 
 use crate::error::{PatreonError, Result};
 use crate::oauth::{self, PatreonApp};
@@ -16,20 +16,21 @@ const FAILURE_ALERT: i32 = 5;
 pub struct PatreonPollCron;
 
 impl PatreonPollCron {
-    pub fn cron_job(
+    pub fn worker_job(
         client: Client,
         app: Arc<PatreonApp>,
-    ) -> std::result::Result<CronJob, jiff_cron::error::Error> {
-        CronJob::new("patreon_poll", "0 */15 * * * * *").map(|job| {
-            job.set_action(move |ctx, pool| {
+    ) -> std::result::Result<WorkerJob, jiff_cron::error::Error> {
+        WorkerJob::new("patreon_poll", "0 */15 * * * * *").map(|job| {
+            job.set_action(move |cx| {
                 let client = client.clone();
                 let app = Arc::clone(&app);
 
                 async move {
-                    poll_all(&client, &app, &pool).await;
+                    poll_all(&client, &app, &cx.db).await;
 
                     if let Err(e) =
-                        announce::announce_pending(&ctx.http, &client, &pool).await
+                        announce::announce_pending(&cx.webhooks, &client, &cx.db)
+                            .await
                     {
                         error!(error = ?e, "patreon: failed to announce pending posts");
                     }

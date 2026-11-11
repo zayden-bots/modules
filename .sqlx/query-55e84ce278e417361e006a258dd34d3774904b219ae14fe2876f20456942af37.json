@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT COALESCE(s.dm_summaries, TRUE) AS \"dm_summaries!\",\n               serving_application(s.opt_in_guild_id, 'zayden') AS dm_application_id\n        FROM (SELECT $1::bigint AS discord_id) u\n        LEFT JOIN deadlock_user_settings s ON s.discord_id = u.discord_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "dm_summaries!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "dm_application_id",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "55e84ce278e417361e006a258dd34d3774904b219ae14fe2876f20456942af37"
+}

@@ -4,7 +4,7 @@ use jellyfin::guest;
 use jellyfin::runtime::JellyfinRuntime;
 use sqlx::PgPool;
 use tracing::{error, info, warn};
-use zayden_core::CronJob;
+use zayden_core::{CronCtx, WorkerJob, WorkerJobResult};
 
 use crate::party::lifecycle;
 use crate::party::row::PartyRow;
@@ -12,27 +12,23 @@ use crate::party::row::PartyRow;
 pub struct JellyfinPartyReaperCron;
 
 impl JellyfinPartyReaperCron {
-    pub fn cron_job(
-        runtime: Arc<JellyfinRuntime>,
-    ) -> Result<CronJob, jiff_cron::error::Error> {
-        CronJob::new("jellyfin_party_reaper", "0 */10 * * * * *").map(|job| {
-            job.set_action(move |_ctx, pool| {
+    pub fn worker_job(runtime: Arc<JellyfinRuntime>) -> WorkerJobResult {
+        WorkerJob::new("jellyfin_party_reaper", "0 */10 * * * * *").map(|job| {
+            job.set_action(move |cx: CronCtx| {
                 let runtime = Arc::clone(&runtime);
                 async move {
-                    sweep_due(&runtime, &pool).await;
+                    sweep_due(&runtime, &cx.db).await;
                 }
             })
         })
     }
 
-    pub fn reconcile_job(
-        runtime: Arc<JellyfinRuntime>,
-    ) -> Result<CronJob, jiff_cron::error::Error> {
-        CronJob::new("jellyfin_party_reconcile", "0 30 * * * * *").map(|job| {
-            job.set_action(move |_ctx, pool| {
+    pub fn reconcile_job(runtime: Arc<JellyfinRuntime>) -> WorkerJobResult {
+        WorkerJob::new("jellyfin_party_reconcile", "0 30 * * * * *").map(|job| {
+            job.set_action(move |cx: CronCtx| {
                 let runtime = Arc::clone(&runtime);
                 async move {
-                    if let Err(e) = reconcile(&runtime, &pool).await {
+                    if let Err(e) = reconcile(&runtime, &cx.db).await {
                         error!(error = ?e, "jellyfin: party reconciliation failed");
                     }
                 }

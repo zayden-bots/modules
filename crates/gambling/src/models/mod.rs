@@ -88,7 +88,7 @@ pub trait Stamina {
 
 #[must_use]
 pub fn out_of_stamina() -> GamblingError {
-    let job = match StaminaCron::cron_job() {
+    let job = match StaminaCron::worker_job() {
         Ok(job) => job,
         Err(e) => {
             return GamblingError::Internal(format!(

@@ -19,7 +19,6 @@ async-trait = { workspace = true }
 futures = { workspace = true, features = ["std", "async-await"] }
 image = { workspace = true }
 jiff = { workspace = true }
-jiff-cron = { workspace = true }
 jiff-sqlx = { workspace = true }
 moka = { workspace = true, features = ["future"] }
 quick-xml = { workspace = true }

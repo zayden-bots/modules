@@ -31,7 +31,7 @@ pub(super) async fn run(
     }
 
     if let Some(enabled) = dm {
-        user_settings::set_dm_summaries(pool, user_id, enabled).await?;
+        user_settings::set_dm_summaries(pool, user_id, enabled, guild_id).await?;
     }
     if let (Some(enabled), Some(guild_id)) = (server, guild_id) {
         guild_members::set_share_summaries(pool, guild_id, user_id, enabled).await?;
@@ -39,7 +39,7 @@ pub(super) async fn run(
 
     let mut lines = vec![format!(
         "DM summaries: **{}**",
-        on_off(user_settings::dm_summaries(pool, user_id).await?)
+        on_off(user_settings::dm_target(pool, user_id).await?.0)
     )];
 
     if let Some(guild_id) = guild_id {

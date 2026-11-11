@@ -1,15 +1,15 @@
 use sqlx::PgPool;
 use tracing::{error, info};
-use zayden_core::CronJob;
+use zayden_core::{CronCtx, WorkerJob, WorkerJobResult};
 
 use crate::games::round::RoundRow;
 
 pub struct JellyfinGameRoundReaperCron;
 
 impl JellyfinGameRoundReaperCron {
-    pub fn cron_job() -> Result<CronJob, jiff_cron::error::Error> {
-        CronJob::new("jellyfin_game_round_reaper", "0 15 4 * * * *").map(|job| {
-            job.set_action(|_ctx, pool| async move { sweep(&pool).await })
+    pub fn worker_job() -> WorkerJobResult {
+        WorkerJob::new("jellyfin_game_round_reaper", "0 15 4 * * * *").map(|job| {
+            job.set_action(|cx: CronCtx| async move { sweep(&cx.db).await })
         })
     }
 }

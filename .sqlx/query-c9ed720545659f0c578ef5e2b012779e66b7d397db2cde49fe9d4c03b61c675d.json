@@ -1,0 +1,84 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT a.guild_id, a.channel_id, a.public_only, a.message,\n                   a.ping_role_ids,\n                   delivery_application(a.guild_id, a.delivery_application_id) AS \"application_id!\"\n            FROM patreon_announce a\n            JOIN patreon_oauth o ON o.guild_id = a.guild_id\n            WHERE o.campaign_id = $1\n              AND o.disabled_at IS NULL\n              AND (NOT a.public_only OR $2)\n              AND delivery_application(a.guild_id, a.delivery_application_id) IS NOT NULL\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "patreon_announce",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "patreon_announce",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "public_only",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "patreon_announce",
+            "name": "public_only"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "message",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "patreon_announce",
+            "name": "message"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "ping_role_ids",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "patreon_announce",
+            "name": "ping_role_ids"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "application_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "c9ed720545659f0c578ef5e2b012779e66b7d397db2cde49fe9d4c03b61c675d"
+}

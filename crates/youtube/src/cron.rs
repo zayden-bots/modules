@@ -3,7 +3,7 @@ use std::sync::Arc;
 use reqwest::Client;
 use sqlx::PgPool;
 use tracing::{debug, error, warn};
-use zayden_core::CronJob;
+use zayden_core::WorkerJob;
 
 use crate::store::YoutubeChannelRow;
 use crate::websub::Mode;
@@ -12,19 +12,21 @@ use crate::{announce, poll, websub};
 pub struct YoutubePollCron;
 
 impl YoutubePollCron {
-    pub fn cron_job(
+    pub fn worker_job(
         client: Client,
         api_key: Arc<str>,
-    ) -> Result<CronJob, jiff_cron::error::Error> {
-        CronJob::new("youtube_poll", "0 */15 * * * * *").map(|job| {
-            job.set_action(move |ctx, pool| {
+    ) -> Result<WorkerJob, jiff_cron::error::Error> {
+        WorkerJob::new("youtube_poll", "0 */15 * * * * *").map(|job| {
+            job.set_action(move |cx| {
                 let client = client.clone();
                 let api_key = Arc::clone(&api_key);
 
                 async move {
-                    poll_all(&client, &pool, &api_key).await;
+                    poll_all(&client, &cx.db, &api_key).await;
 
-                    if let Err(e) = announce::announce_pending(&ctx.http, &pool).await {
+                    if let Err(e) =
+                        announce::announce_pending(&cx.webhooks, &cx.db).await
+                    {
                         error!(error = ?e, "youtube: failed to announce pending videos");
                     }
                 }
@@ -58,16 +60,16 @@ async fn poll_all(client: &Client, pool: &PgPool, api_key: &str) {
 pub struct YoutubeLeaseCron;
 
 impl YoutubeLeaseCron {
-    pub fn cron_job(
+    pub fn worker_job(
         client: Client,
         webhook_uri: Arc<str>,
-    ) -> Result<CronJob, jiff_cron::error::Error> {
-        CronJob::new("youtube_websub_lease", "0 0 */6 * * * *").map(|job| {
-            job.set_action(move |_ctx, pool| {
+    ) -> Result<WorkerJob, jiff_cron::error::Error> {
+        WorkerJob::new("youtube_websub_lease", "0 0 */6 * * * *").map(|job| {
+            job.set_action(move |cx| {
                 let client = client.clone();
                 let webhook_uri = Arc::clone(&webhook_uri);
 
-                async move { renew_all(&client, &pool, &webhook_uri).await }
+                async move { renew_all(&client, &cx.db, &webhook_uri).await }
             })
         })
     }

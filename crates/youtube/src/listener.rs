@@ -1,33 +1,27 @@
 use std::sync::Arc;
 
-use serenity::all::Context;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::warn;
 use zayden_app::events::AppEvent;
-use zayden_app::state::AppState;
+use zayden_core::CronCtx;
 
 use crate::{YoutubeRuntime, announce};
 
-pub(crate) fn spawn_youtube_listener(
-    ctx: Context,
-    app: Arc<AppState>,
-    runtime: YoutubeRuntime,
-) {
+pub(crate) fn spawn_youtube_listener(cx: CronCtx, runtime: YoutubeRuntime) {
     tokio::spawn(async move {
-        let mut rx = app.subscribe();
+        let mut rx = cx.app.subscribe();
 
         loop {
             match rx.recv().await {
                 Ok(AppEvent::YoutubeUpload(channel_id)) => {
-                    let ctx = ctx.clone();
-                    let app = Arc::clone(&app);
+                    let cx = cx.clone();
                     let api_key = Arc::clone(&runtime.api_key);
 
                     tokio::spawn(async move {
                         announce::on_ping(
-                            &ctx.http,
-                            &app.http,
-                            &app.db,
+                            &cx.webhooks,
+                            &cx.app.http,
+                            &cx.db,
                             &api_key,
                             &channel_id,
                         )
@@ -44,6 +38,8 @@ pub(crate) fn spawn_youtube_listener(
                     | AppEvent::CustomBotsChanged(_)
                     | AppEvent::LoadoutsChanged
                     | AppEvent::TaskScheduled(_)
+                    | AppEvent::DeliveryChanged(_)
+                    | AppEvent::WebhookBroken { .. }
                     // The next poll re-reads every channel, so nothing is lost.
                     | AppEvent::Resync,
                 ) => {},

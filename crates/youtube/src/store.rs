@@ -1,5 +1,5 @@
 use jiff_sqlx::{Timestamp, ToSqlx};
-use serenity::all::ChannelId;
+use serenity::all::{ApplicationId, ChannelId};
 use sqlx::PgPool;
 use zayden_core::as_u64;
 
@@ -394,6 +394,12 @@ pub struct YoutubeAnnounceRow {
     pub ping_role_ids: Vec<i64>,
 }
 
+#[derive(Debug, Clone)]
+pub struct YoutubeTarget {
+    pub row: YoutubeAnnounceRow,
+    pub application_id: ApplicationId,
+}
+
 impl YoutubeAnnounceRow {
     #[must_use]
     pub const fn channel(&self) -> ChannelId {
@@ -403,21 +409,33 @@ impl YoutubeAnnounceRow {
     pub async fn for_channel(
         pool: &PgPool,
         youtube_channel_id: &str,
-    ) -> Result<Vec<Self>> {
-        let rows = sqlx::query_as!(
-            Self,
+    ) -> Result<Vec<YoutubeTarget>> {
+        let rows = sqlx::query!(
             r#"
-            SELECT a.guild_id, a.channel_id, a.message, a.ping_role_ids
+            SELECT a.guild_id, a.channel_id, a.message, a.ping_role_ids,
+                   delivery_application(a.guild_id, a.delivery_application_id) AS "application_id!"
             FROM youtube_announce a
             JOIN youtube_connections o ON o.guild_id = a.guild_id
             WHERE o.channel_id = $1
+              AND delivery_application(a.guild_id, a.delivery_application_id) IS NOT NULL
             "#,
             youtube_channel_id
         )
         .fetch_all(pool)
         .await?;
 
-        Ok(rows)
+        Ok(rows
+            .into_iter()
+            .map(|r| YoutubeTarget {
+                row: Self {
+                    guild_id: r.guild_id,
+                    channel_id: r.channel_id,
+                    message: r.message,
+                    ping_role_ids: r.ping_role_ids,
+                },
+                application_id: ApplicationId::new(as_u64(r.application_id)),
+            })
+            .collect())
     }
 
     pub async fn select(pool: &PgPool, guild_id: i64) -> Result<Option<Self>> {

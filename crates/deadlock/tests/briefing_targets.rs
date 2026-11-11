@@ -23,6 +23,7 @@ async fn only_opted_in_players_who_have_not_played_since_are_targeted(pool: PgPo
         hero_id: 1,
         games: 2,
         last_played: at!("2026-10-09T08:00:00Z"),
+        dm_application_id: None,
     }]);
 }
 

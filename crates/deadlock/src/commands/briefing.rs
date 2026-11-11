@@ -22,9 +22,10 @@ pub(super) async fn run(
     let enabled: Option<bool> = optional_option(&mut options, "enabled");
 
     let user_id = as_i64(cx.interaction.user.id.get());
+    let guild_id = cx.interaction.guild_id.map(|guild| as_i64(guild.get()));
 
     if let Some(enabled) = enabled {
-        user_settings::set_patch_briefing(pool, user_id, enabled).await?;
+        user_settings::set_patch_briefing(pool, user_id, enabled, guild_id).await?;
     }
 
     let mut lines = vec![format!(

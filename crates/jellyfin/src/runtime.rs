@@ -3,14 +3,14 @@ use std::sync::Arc;
 use reqwest::Client;
 use secrecy::ExposeSecret;
 use zayden_app::config::JellyfinConfig;
-use zayden_core::{ModuleCtx, ModuleError};
+use zayden_core::{ModuleError, WorkerModuleCtx};
 
 use crate::cache::JellyfinCaches;
 use crate::error::Result;
 use crate::transport::{JellyfinClient, PlaybackClient, SeerClient};
 
 pub fn runtime_from_config(
-    cx: &ModuleCtx<'_>,
+    cx: &WorkerModuleCtx<'_>,
 ) -> std::result::Result<Option<Arc<JellyfinRuntime>>, ModuleError> {
     cx.config
         .jellyfin

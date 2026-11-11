@@ -1,4 +1,4 @@
-use serenity::all::ChannelId;
+use serenity::all::{ApplicationId, ChannelId};
 use sqlx::PgPool;
 use zayden_core::as_u64;
 
@@ -125,35 +125,41 @@ impl PatchAnnounceRow {
     }
 }
 
-pub async fn targets(
-    pool: &PgPool,
-    application_id: i64,
-    slot: &str,
-) -> sqlx::Result<Vec<PatchAnnounceRow>> {
-    let rows = sqlx::query_as!(
-        PatchAnnounceRow,
+#[derive(Debug, Clone)]
+pub struct PatchTarget {
+    pub row: PatchAnnounceRow,
+    pub application_id: ApplicationId,
+}
+
+pub async fn targets(pool: &PgPool) -> sqlx::Result<Vec<PatchTarget>> {
+    let rows = sqlx::query!(
         r#"
-        SELECT a.guild_id, a.channel_id, a.message, a.ping_role_ids
+        SELECT a.guild_id, a.channel_id, a.message, a.ping_role_ids,
+               delivery_application(a.guild_id, a.delivery_application_id) AS "application_id!"
         FROM deadlock_patch_announce a
-        WHERE NOT EXISTS (
+        WHERE delivery_application(a.guild_id, a.delivery_application_id) IS NOT NULL
+          AND NOT EXISTS (
                 SELECT 1 FROM guild_app_modules m
                 WHERE m.guild_id = a.guild_id
-                  AND m.application_id = COALESCE(serving_application(a.guild_id, $2), $1)
+                  AND m.application_id = delivery_application(a.guild_id, a.delivery_application_id)
                   AND m.module = 'deadlock'
                   AND NOT m.enabled
             )
-          AND EXISTS (
-                SELECT 1 FROM guild_presence p
-                WHERE p.guild_id = a.guild_id
-                  AND p.application_id = $1
-                  AND p.left_at IS NULL
-            )
-        "#,
-        application_id,
-        slot
+        "#
     )
     .fetch_all(pool)
     .await?;
 
-    Ok(rows)
+    Ok(rows
+        .into_iter()
+        .map(|r| PatchTarget {
+            row: PatchAnnounceRow {
+                guild_id: r.guild_id,
+                channel_id: r.channel_id,
+                message: r.message,
+                ping_role_ids: r.ping_role_ids,
+            },
+            application_id: ApplicationId::new(as_u64(r.application_id)),
+        })
+        .collect())
 }

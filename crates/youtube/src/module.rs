@@ -3,11 +3,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use secrecy::ExposeSecret;
 use zayden_app::config::BotConfig;
-use zayden_core::ctx::StartCtx;
-use zayden_core::{CronResult, Module, OverlapError, RegistryBuilder};
+use zayden_core::{Module, OverlapError, RegistryBuilder};
 
-use crate::listener::spawn_youtube_listener;
-use crate::{YoutubeLeaseCron, YoutubePollCron, YoutubeRuntime};
+use crate::YoutubeRuntime;
 
 #[must_use]
 pub fn runtime_from_config(config: &BotConfig) -> Option<YoutubeRuntime> {
@@ -24,20 +22,7 @@ pub fn runtime_from_config(config: &BotConfig) -> Option<YoutubeRuntime> {
     })
 }
 
-pub struct YoutubeModule {
-    http: reqwest::Client,
-    runtime: Option<YoutubeRuntime>,
-}
-
-impl YoutubeModule {
-    #[must_use]
-    pub const fn new(
-        http: reqwest::Client,
-        runtime: Option<YoutubeRuntime>,
-    ) -> Self {
-        Self { http, runtime }
-    }
-}
+pub struct YoutubeModule;
 
 #[async_trait]
 impl Module for YoutubeModule {
@@ -47,28 +32,5 @@ impl Module for YoutubeModule {
 
     fn register(&self, _b: &mut RegistryBuilder) -> Result<(), OverlapError> {
         Ok(())
-    }
-
-    fn worker_jobs(&self) -> Vec<CronResult> {
-        self.runtime.as_ref().map_or_else(Vec::new, |runtime| {
-            vec![
-                YoutubePollCron::cron_job(
-                    self.http.clone(),
-                    Arc::clone(&runtime.api_key),
-                ),
-                YoutubeLeaseCron::cron_job(
-                    self.http.clone(),
-                    Arc::clone(&runtime.webhook_uri),
-                ),
-            ]
-        })
-    }
-
-    fn on_start(&self, cx: &StartCtx<'_>) {
-        if cx.primary
-            && let Some(runtime) = self.runtime.clone()
-        {
-            spawn_youtube_listener(cx.ctx.clone(), Arc::clone(&cx.app), runtime);
-        }
     }
 }

@@ -19,7 +19,6 @@ use zayden_core::error::HandlerError;
 use zayden_core::module::{ModuleComponent, ModuleModal};
 use zayden_core::scope::IdMatch;
 use zayden_core::{
-    CronResult,
     EventCtx,
     EventKind,
     Module,
@@ -29,7 +28,6 @@ use zayden_core::{
 };
 
 use self::watch::{Watch, apply};
-use crate::JellyfinPartyReaperCron;
 use crate::components::{
     PARTY_CANCEL_PREFIX,
     PARTY_JOIN_PREFIX,
@@ -253,14 +251,5 @@ impl Module for WatchModule {
         tasks::run(&cx.ctx.http, runtime, &cx.app.db, task)
             .await
             .map_err(HandlerError::new)
-    }
-
-    fn worker_jobs(&self) -> Vec<CronResult> {
-        self.runtime.as_option().map_or_else(Vec::new, |runtime| {
-            vec![
-                JellyfinPartyReaperCron::cron_job(Arc::clone(runtime)),
-                JellyfinPartyReaperCron::reconcile_job(Arc::clone(runtime)),
-            ]
-        })
     }
 }

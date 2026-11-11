@@ -15,6 +15,7 @@ macro_rules! recent {
             hero_id: $hero_id,
             games: $games,
             last_played: Timestamp::from_second($last_played).unwrap(),
+            dm_application_id: None,
         }
     };
 }
@@ -61,6 +62,7 @@ fn the_top_three_heroes_are_ranked_by_games_then_recency_then_id() {
     assert_eq!(recipients(&rows, &touching(&[1, 2, 3, 4, 5])), vec![Recipient {
         discord_id: 10,
         hero_ids: vec![2, 3, 4],
+        dm_application_id: None,
     }]);
 }
 
@@ -76,6 +78,7 @@ fn only_touched_heroes_are_kept_and_a_fourth_favourite_is_not_promoted() {
     assert_eq!(recipients(&rows, &touching(&[2, 4])), vec![Recipient {
         discord_id: 10,
         hero_ids: vec![2],
+        dm_application_id: None,
     }]);
 }
 
@@ -86,6 +89,7 @@ fn a_player_without_a_touched_hero_is_dropped() {
     assert_eq!(recipients(&rows, &touching(&[2])), vec![Recipient {
         discord_id: 11,
         hero_ids: vec![2],
+        dm_application_id: None,
     }]);
 }
 
@@ -97,6 +101,7 @@ fn a_removed_hero_still_counts() {
     assert_eq!(recipients(&rows, &removed), vec![Recipient {
         discord_id: 10,
         hero_ids: vec![1],
+        dm_application_id: None,
     }]);
 }
 
@@ -134,7 +139,9 @@ fn the_briefing_lists_only_the_given_heroes_and_the_patch_link() {
         ])),
     };
 
-    let json = serde_json::to_value(briefing_dm(&patch, &[1])).unwrap().to_string();
+    let json = serde_json::to_value(briefing_dm(&patch, &[1]).to_message())
+        .unwrap()
+        .to_string();
 
     assert!(json.contains("Infernus"));
     assert!(!json.contains("Haze"));

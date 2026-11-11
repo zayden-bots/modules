@@ -11,6 +11,7 @@ pub mod pricing;
 pub mod provision;
 pub mod store;
 pub mod sweep;
+mod worker;
 
 use std::sync::Arc;
 
@@ -24,6 +25,7 @@ pub use crate::discord::HostingModule;
 pub use crate::error::{HostingError, Result};
 pub use crate::pelican::PelicanApp;
 pub use crate::pricing::Plan;
+pub use crate::worker::HostingWorker;
 
 #[derive(Debug, Clone)]
 pub struct HostingRuntime {

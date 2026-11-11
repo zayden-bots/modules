@@ -3,9 +3,10 @@ use std::time::Duration;
 
 use deadlock_api::Priority;
 use futures::StreamExt;
-use serenity::all::{ChannelId, CreateMessage, Http, UserId};
-use sqlx::PgPool;
+use jiff::Timestamp;
+use serenity::all::{ApplicationId, ChannelId, UserId};
 use tracing::{error, warn};
+use zayden_core::{CronCtx, Post, queue_dm};
 
 use crate::client::DeadlockApi;
 use crate::db::{guild_posts, summary_channel, user_settings};
@@ -27,11 +28,8 @@ pub struct DeliveryOutcome {
 }
 
 pub async fn deliver(
-    http: &Http,
-    pool: &PgPool,
+    cx: &CronCtx,
     api: &DeadlockApi,
-    application_id: i64,
-    slot: &str,
     jobs: Vec<SummaryJob>,
 ) -> Result<DeliveryOutcome> {
     let heroes = match api.heroes(None, Priority::Background).await {
@@ -49,62 +47,65 @@ pub async fn deliver(
         },
     };
 
-    let dms = send_dms(http, pool, &jobs, &heroes, &items).await?;
-    let posts =
-        post_to_guilds(http, pool, application_id, slot, &jobs, &heroes, &items)
-            .await?;
+    let dms = send_dms(cx, &jobs, &heroes, &items).await?;
+    let posts = post_to_guilds(cx, &jobs, &heroes, &items).await?;
 
     Ok(DeliveryOutcome { dms, posts })
 }
 
 async fn send_dms(
-    http: &Http,
-    pool: &PgPool,
+    cx: &CronCtx,
     jobs: &[SummaryJob],
     heroes: &HeroIndex,
     items: &ItemIndex,
 ) -> Result<usize> {
-    let mut sent = 0;
-    let mut first = true;
+    let now = Timestamp::now();
+    let mut sent = 0_usize;
 
     for job in jobs {
-        if job.discord_id == 0
-            || !user_settings::dm_summaries(pool, job.discord_id).await?
-        {
+        if job.discord_id == 0 {
             continue;
         }
 
-        if !first {
-            tokio::time::sleep(DM_INTERVAL).await;
+        let (enabled, dm_application_id) =
+            user_settings::dm_target(&cx.db, job.discord_id).await?;
+        if !enabled {
+            continue;
         }
-        first = false;
 
-        let message =
+        let post =
             embeds::summary_dm(&job.summary, heroes.get(job.summary.hero_id), items);
         let user = UserId::new(job.discord_id.cast_unsigned());
+        let target = dm_application_id.map_or_else(
+            || ApplicationId::new(cx.app.zayden_id),
+            |id| ApplicationId::new(id.cast_unsigned()),
+        );
+        let offset =
+            DM_INTERVAL.saturating_mul(u32::try_from(sent).unwrap_or(u32::MAX));
+        let run_at = now.checked_add(offset).unwrap_or(now);
 
-        match user.direct_message(http, message).await {
-            Ok(_) => sent += 1,
-            Err(e) => warn!(
-                error = ?e,
-                discord_id = job.discord_id,
-                "deadlock: failed to DM a match summary; it is not retried"
-            ),
-        }
+        queue_dm(
+            &cx.db,
+            target,
+            user,
+            format!("deadlock:summary:{}:{}", job.summary.match_id, job.discord_id),
+            run_at,
+            &post,
+        )
+        .await?;
+        sent += 1;
     }
 
     Ok(sent)
 }
 
 async fn post_to_guilds(
-    http: &Http,
-    pool: &PgPool,
-    application_id: i64,
-    slot: &str,
+    cx: &CronCtx,
     jobs: &[SummaryJob],
     heroes: &HeroIndex,
     items: &ItemIndex,
 ) -> Result<usize> {
+    let pool = &cx.db;
     let mut by_match: BTreeMap<u64, Vec<&SummaryJob>> = BTreeMap::new();
     for job in jobs {
         by_match.entry(job.summary.match_id).or_default().push(job);
@@ -113,27 +114,24 @@ async fn post_to_guilds(
     let mut posts = Vec::new();
 
     for (match_id, match_jobs) in by_match {
-        let mut by_guild: BTreeMap<i64, (i64, Vec<&SummaryJob>)> = BTreeMap::new();
+        let mut by_guild: BTreeMap<i64, (i64, ApplicationId, Vec<&SummaryJob>)> =
+            BTreeMap::new();
 
         for job in match_jobs {
-            let targets = summary_channel::targets_for(
-                pool,
-                job.discord_id,
-                application_id,
-                slot,
-            )
-            .await?;
+            let targets = summary_channel::targets_for(pool, job.discord_id).await?;
 
             for target in targets {
                 by_guild
                     .entry(target.guild_id)
-                    .or_insert_with(|| (target.channel_id, Vec::new()))
-                    .1
+                    .or_insert_with(|| {
+                        (target.channel_id, target.application_id, Vec::new())
+                    })
+                    .2
                     .push(job);
             }
         }
 
-        for (guild_id, (channel_id, guild_jobs)) in by_guild {
+        for (guild_id, (channel_id, application_id, guild_jobs)) in by_guild {
             if channel_id == 0
                 || !guild_posts::claim(pool, guild_id, match_id).await?
             {
@@ -147,7 +145,7 @@ async fn post_to_guilds(
                 .collect();
             let message = embeds::summary_post(&sections, heroes, items);
 
-            posts.push(post(http, guild_id, channel_id, message));
+            posts.push(post(cx, guild_id, channel_id, application_id, message));
         }
     }
 
@@ -160,14 +158,15 @@ async fn post_to_guilds(
 }
 
 async fn post(
-    http: &Http,
+    cx: &CronCtx,
     guild_id: i64,
     channel_id: i64,
-    message: CreateMessage<'static>,
+    application_id: ApplicationId,
+    message: Post<'static>,
 ) -> bool {
     let channel = ChannelId::new(channel_id.cast_unsigned());
 
-    match channel.widen().send_message(http, message).await {
+    match cx.webhooks.send(channel, application_id, &message).await {
         Ok(_) => true,
         Err(e) => {
             error!(

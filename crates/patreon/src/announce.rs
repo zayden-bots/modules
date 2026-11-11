@@ -1,13 +1,13 @@
 use futures::StreamExt;
 use jiff::{SignedDuration, Timestamp};
 use reqwest::Client;
-use serenity::all::{CreateMessage, Http, MessageFlags};
 use sqlx::PgPool;
 use tracing::{error, info, warn};
 use zayden_core::announce::allowed_roles;
+use zayden_core::{Post, WebhookPool};
 
 use crate::error::Result;
-use crate::store::{self, PatreonAnnounceRow, PendingPost};
+use crate::store::{self, PatreonAnnounceRow, PatreonTarget, PendingPost};
 use crate::{embeds, thumbnail};
 
 const CLAIM_BATCH: i64 = 20;
@@ -16,7 +16,7 @@ const CONCURRENCY: usize = 5;
 pub const MAX_AGE: SignedDuration = SignedDuration::from_hours(48);
 
 pub async fn announce_pending(
-    http: &Http,
+    webhooks: &WebhookPool,
     client: &Client,
     pool: &PgPool,
 ) -> Result<()> {
@@ -75,7 +75,7 @@ pub async fn announce_pending(
             continue;
         }
 
-        broadcast(http, &post, rows).await;
+        broadcast(webhooks, &post, rows).await;
     }
 
     Ok(())
@@ -97,28 +97,31 @@ async fn lookup_thumbnail(client: &Client, post: &PendingPost) -> Option<String>
     url
 }
 
-async fn broadcast(http: &Http, post: &PendingPost, rows: Vec<PatreonAnnounceRow>) {
+async fn broadcast(
+    webhooks: &WebhookPool,
+    post: &PendingPost,
+    rows: Vec<PatreonTarget>,
+) {
     let component = embeds::post_component(post);
 
-    futures::stream::iter(rows.into_iter().map(|row| {
+    futures::stream::iter(rows.into_iter().map(|target| {
         let component = component.clone();
         async move {
+            let PatreonTarget { row, application_id } = target;
             let components = embeds::intro_component(post, &row)
                 .into_iter()
                 .chain([component])
                 .collect::<Vec<_>>();
 
-            let message = CreateMessage::new()
-                .flags(MessageFlags::IS_COMPONENTS_V2)
-                .components(components)
+            let message = Post::components_v2(components)
                 .allowed_mentions(allowed_roles(&row.ping_role_ids));
 
-            match row.channel().widen().send_message(http, message).await {
-                Ok(sent) => info!(
+            match webhooks.send(row.channel(), application_id, &message).await {
+                Ok(delivered) => info!(
                     guild_id = row.guild_id,
                     channel_id = row.channel_id,
                     post_id = post.post_id,
-                    message_id = %sent.id,
+                    delivered = ?delivered,
                     "patreon: announcement posted"
                 ),
                 Err(e) => error!(
@@ -126,9 +129,7 @@ async fn broadcast(http: &Http, post: &PendingPost, rows: Vec<PatreonAnnounceRow
                     guild_id = row.guild_id,
                     channel_id = row.channel_id,
                     post_id = post.post_id,
-                    "patreon: failed to post announcement; it is not retried. \
-                     Missing Permissions means the bot needs View Channel and \
-                     Send Messages in that channel"
+                    "patreon: failed to post announcement; it is not retried"
                 ),
             }
         }

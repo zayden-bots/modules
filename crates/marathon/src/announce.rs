@@ -1,6 +1,14 @@
+use serenity::all::ApplicationId;
 use sqlx::PgPool;
+use zayden_core::as_u64;
 
 use crate::error::Result;
+
+#[derive(Debug, Clone)]
+pub struct MarathonTarget {
+    pub row: MarathonAnnounceRow,
+    pub application_id: ApplicationId,
+}
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct MarathonAnnounceRow {
@@ -61,6 +69,31 @@ impl MarathonAnnounceRow {
         .await?;
 
         Ok(rows)
+    }
+
+    pub async fn targets(pool: &PgPool) -> Result<Vec<MarathonTarget>> {
+        let rows = sqlx::query!(
+            r#"
+            SELECT a.guild_id, a.channel_id, a.last_rotation,
+                   delivery_application(a.guild_id, a.delivery_application_id) AS "application_id!"
+            FROM marathon_announce a
+            WHERE delivery_application(a.guild_id, a.delivery_application_id) IS NOT NULL
+            "#
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| MarathonTarget {
+                row: Self {
+                    guild_id: r.guild_id,
+                    channel_id: r.channel_id,
+                    last_rotation: r.last_rotation,
+                },
+                application_id: ApplicationId::new(as_u64(r.application_id)),
+            })
+            .collect())
     }
 
     pub async fn set_last_rotation(

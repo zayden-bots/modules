@@ -5,23 +5,20 @@ mod command;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use bungie_api::{BungieClient, BungieClientBuilder};
+use bungie_api::BungieClient;
 pub use cache_listener::spawn_cache_listener;
-use secrecy::{ExposeSecret, SecretString};
 use sqlx::PgPool;
 use zayden_core::error::HandlerError;
 use zayden_core::{
-    CronResult,
     Module,
     ModuleCtx,
     ModuleError,
     OverlapError,
     RegistryBuilder,
     StartCtx,
-    require,
 };
 
-use crate::endgame_analysis::EndgameAnalysisSheetCron;
+use crate::worker::clients_from_config;
 
 #[async_trait]
 pub trait ParentToken: Send + Sync {
@@ -31,7 +28,6 @@ pub trait ParentToken: Send + Sync {
 pub struct Destiny2Module {
     bungie_client: Arc<BungieClient>,
     parent_token: Arc<dyn ParentToken>,
-    google_api_key: SecretString,
 }
 
 impl Destiny2Module {
@@ -39,26 +35,9 @@ impl Destiny2Module {
         cx: &ModuleCtx<'_>,
         parent_token: Arc<dyn ParentToken>,
     ) -> Result<Self, ModuleError> {
-        let bungie_api_key = require(
-            "destiny2",
-            "BUNGIE_API_KEY",
-            cx.config.bungie_api_key.as_ref(),
-        )?;
-        let google_api_key = require(
-            "destiny2",
-            "GOOGLE_API_KEY",
-            cx.config.google_api_key.as_ref(),
-        )?;
-        let bungie_client =
-            BungieClientBuilder::new(bungie_api_key.expose_secret().to_owned())
-                .build()
-                .map_err(|e| ModuleError::init("destiny2", e))?;
+        let (bungie_client, _) = clients_from_config(&cx.worker())?;
 
-        Ok(Self {
-            bungie_client: Arc::new(bungie_client),
-            parent_token,
-            google_api_key: google_api_key.clone(),
-        })
+        Ok(Self { bungie_client, parent_token })
     }
 }
 
@@ -77,13 +56,6 @@ impl Module for Destiny2Module {
             bungie_client: Arc::clone(&self.bungie_client),
         });
         Ok(())
-    }
-
-    fn worker_jobs(&self) -> Vec<CronResult> {
-        vec![EndgameAnalysisSheetCron::cron_job(
-            Arc::clone(&self.bungie_client),
-            self.google_api_key.expose_secret().to_owned(),
-        )]
     }
 
     fn on_start(&self, cx: &StartCtx<'_>) {

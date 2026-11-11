@@ -1,4 +1,6 @@
+use serenity::all::ApplicationId;
 use sqlx::PgPool;
+use zayden_core::as_u64;
 
 #[derive(Debug, Clone, Copy)]
 pub struct SquadChannel {
@@ -9,9 +11,16 @@ pub struct SquadChannel {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub struct LeaderboardTarget {
+    pub channel: SquadChannel,
+    pub application_id: ApplicationId,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct SquadTarget {
     pub guild_id: i64,
     pub channel_id: i64,
+    pub application_id: ApplicationId,
 }
 
 pub async fn select(
@@ -99,70 +108,74 @@ pub async fn set_leaderboard_message(
 pub async fn targets_for(
     pool: &PgPool,
     discord_id: i64,
-    application_id: i64,
-    slot: &str,
 ) -> sqlx::Result<Vec<SquadTarget>> {
-    sqlx::query_as!(
-        SquadTarget,
+    let rows = sqlx::query!(
         r#"
-        SELECT c.guild_id, c.channel_id
+        SELECT c.guild_id, c.channel_id,
+               delivery_application(c.guild_id, c.delivery_application_id) AS "application_id!"
         FROM deadlock_squad_channel c
         JOIN deadlock_guild_members m
           ON m.guild_id = c.guild_id
          AND m.discord_id = $1
          AND m.squad
-        WHERE NOT EXISTS (
+        WHERE delivery_application(c.guild_id, c.delivery_application_id) IS NOT NULL
+          AND NOT EXISTS (
                 SELECT 1 FROM guild_app_modules gm
                 WHERE gm.guild_id = c.guild_id
-                  AND gm.application_id = COALESCE(serving_application(c.guild_id, $3), $2)
+                  AND gm.application_id = delivery_application(c.guild_id, c.delivery_application_id)
                   AND gm.module = 'deadlock'
                   AND NOT gm.enabled
             )
-          AND EXISTS (
-                SELECT 1 FROM guild_presence p
-                WHERE p.guild_id = c.guild_id
-                  AND p.application_id = $2
-                  AND p.left_at IS NULL
-            )
         ORDER BY c.guild_id
         "#,
-        discord_id,
-        application_id,
-        slot
+        discord_id
     )
     .fetch_all(pool)
-    .await
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| SquadTarget {
+            guild_id: r.guild_id,
+            channel_id: r.channel_id,
+            application_id: ApplicationId::new(as_u64(r.application_id)),
+        })
+        .collect())
 }
 
 pub async fn leaderboard_guilds(
     pool: &PgPool,
-    application_id: i64,
-    slot: &str,
-) -> sqlx::Result<Vec<SquadChannel>> {
-    sqlx::query_as!(
-        SquadChannel,
+) -> sqlx::Result<Vec<LeaderboardTarget>> {
+    let rows = sqlx::query!(
         r#"
-        SELECT c.guild_id, c.channel_id, c.leaderboard, c.leaderboard_message_id
+        SELECT c.guild_id, c.channel_id, c.leaderboard, c.leaderboard_message_id,
+               delivery_application(c.guild_id, c.delivery_application_id) AS "application_id!"
         FROM deadlock_squad_channel c
         WHERE c.leaderboard
+          AND delivery_application(c.guild_id, c.delivery_application_id) IS NOT NULL
           AND NOT EXISTS (
                 SELECT 1 FROM guild_app_modules gm
                 WHERE gm.guild_id = c.guild_id
-                  AND gm.application_id = COALESCE(serving_application(c.guild_id, $2), $1)
+                  AND gm.application_id = delivery_application(c.guild_id, c.delivery_application_id)
                   AND gm.module = 'deadlock'
                   AND NOT gm.enabled
             )
-          AND EXISTS (
-                SELECT 1 FROM guild_presence p
-                WHERE p.guild_id = c.guild_id
-                  AND p.application_id = $1
-                  AND p.left_at IS NULL
-            )
         ORDER BY c.guild_id
-        "#,
-        application_id,
-        slot
+        "#
     )
     .fetch_all(pool)
-    .await
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| LeaderboardTarget {
+            channel: SquadChannel {
+                guild_id: r.guild_id,
+                channel_id: r.channel_id,
+                leaderboard: r.leaderboard,
+                leaderboard_message_id: r.leaderboard_message_id,
+            },
+            application_id: ApplicationId::new(as_u64(r.application_id)),
+        })
+        .collect())
 }

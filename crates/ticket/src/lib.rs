@@ -29,6 +29,7 @@ pub mod support_guild_manager;
 pub mod thread_create;
 pub mod ticket_manager;
 pub mod wiki;
+mod worker;
 
 pub use components::TicketComponent;
 pub use discord::TicketModule;
@@ -49,6 +50,7 @@ pub use modal::TicketModal;
 pub use support_guild_manager::{SupportRoles, TicketGuildRow, TicketStores};
 pub use thread_create::SupportThreadCreate;
 pub use ticket_manager::TicketRow;
+pub use worker::TicketWorker;
 
 pub struct Ticket;
 

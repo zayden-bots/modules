@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use zayden_core::{CronResult, Module, OverlapError, RegistryBuilder};
+use zayden_core::{CronResult, Identity, Module, OverlapError, RegistryBuilder};
 
-use crate::{GameCache, StaminaCron};
+use crate::GameCache;
 
 mod blackjack;
 mod coinflip;
@@ -70,12 +70,12 @@ impl Module for GamblingModule {
         "gambling"
     }
 
-    fn worker_jobs(&self) -> Vec<CronResult> {
-        vec![
-            StaminaCron::cron_job(),
-            crate::Lotto::cron_job(),
-            crate::HigherLower::cron_job(),
-        ]
+    fn entity_jobs(&self, me: Identity) -> Vec<CronResult> {
+        if me.is_primary() {
+            vec![crate::Lotto::cron_job(), crate::HigherLower::cron_job()]
+        } else {
+            Vec::new()
+        }
     }
 
     fn register(&self, b: &mut RegistryBuilder) -> Result<(), OverlapError> {

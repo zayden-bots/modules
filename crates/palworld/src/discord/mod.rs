@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use secrecy::ExposeSecret;
 use zayden_core::{
     CronResult,
+    Identity,
     Module,
     ModuleCtx,
     OverlapError,
@@ -71,12 +72,15 @@ impl Module for PalworldModule {
         Ok(())
     }
 
-    fn worker_jobs(&self) -> Vec<CronResult> {
-        vec![
-            PalworldUploadSweepCron::cron_job(),
+    fn entity_jobs(&self, me: Identity) -> Vec<CronResult> {
+        let mut jobs = vec![
             PalworldSaveRefreshCron::cron_job(Arc::clone(&self.client)),
             PalworldWarmCron::cron_job(Arc::clone(&self.client)),
-        ]
+        ];
+        if me.is_primary() {
+            jobs.push(PalworldUploadSweepCron::cron_job());
+        }
+        jobs
     }
 
     fn on_start(&self, _cx: &StartCtx<'_>) {

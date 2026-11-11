@@ -68,13 +68,13 @@ async fn a_video_reaches_only_guilds_following_its_channel(pool: PgPool) {
         .await
         .unwrap()
         .iter()
-        .map(|row| row.guild_id)
+        .map(|target| target.row.guild_id)
         .collect();
     let other: Vec<i64> = YoutubeAnnounceRow::for_channel(&pool, "UCother")
         .await
         .unwrap()
         .iter()
-        .map(|row| row.guild_id)
+        .map(|target| target.row.guild_id)
         .collect();
 
     assert_eq!(shared, [1]);

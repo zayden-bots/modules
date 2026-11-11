@@ -1,5 +1,5 @@
 use jiff_sqlx::{Timestamp, ToSqlx};
-use serenity::all::ChannelId;
+use serenity::all::{ApplicationId, ChannelId};
 use sqlx::PgPool;
 use zayden_core::as_u64;
 
@@ -425,6 +425,12 @@ pub struct PatreonAnnounceRow {
     pub ping_role_ids: Vec<i64>,
 }
 
+#[derive(Debug, Clone)]
+pub struct PatreonTarget {
+    pub row: PatreonAnnounceRow,
+    pub application_id: ApplicationId,
+}
+
 impl PatreonAnnounceRow {
     #[must_use]
     pub const fn channel(&self) -> ChannelId {
@@ -435,17 +441,18 @@ impl PatreonAnnounceRow {
         pool: &PgPool,
         campaign_id: &str,
         is_public: bool,
-    ) -> Result<Vec<Self>> {
-        let rows = sqlx::query_as!(
-            Self,
+    ) -> Result<Vec<PatreonTarget>> {
+        let rows = sqlx::query!(
             r#"
             SELECT a.guild_id, a.channel_id, a.public_only, a.message,
-                   a.ping_role_ids
+                   a.ping_role_ids,
+                   delivery_application(a.guild_id, a.delivery_application_id) AS "application_id!"
             FROM patreon_announce a
             JOIN patreon_oauth o ON o.guild_id = a.guild_id
             WHERE o.campaign_id = $1
               AND o.disabled_at IS NULL
               AND (NOT a.public_only OR $2)
+              AND delivery_application(a.guild_id, a.delivery_application_id) IS NOT NULL
             "#,
             campaign_id,
             is_public
@@ -453,7 +460,19 @@ impl PatreonAnnounceRow {
         .fetch_all(pool)
         .await?;
 
-        Ok(rows)
+        Ok(rows
+            .into_iter()
+            .map(|r| PatreonTarget {
+                row: Self {
+                    guild_id: r.guild_id,
+                    channel_id: r.channel_id,
+                    public_only: r.public_only,
+                    message: r.message,
+                    ping_role_ids: r.ping_role_ids,
+                },
+                application_id: ApplicationId::new(as_u64(r.application_id)),
+            })
+            .collect())
     }
 
     pub async fn select(pool: &PgPool, guild_id: i64) -> Result<Option<Self>> {

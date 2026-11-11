@@ -1,9 +1,12 @@
+use serenity::all::ApplicationId;
 use sqlx::PgPool;
+use zayden_core::as_u64;
 
 #[derive(Debug, Clone, Copy)]
 pub struct SummaryTarget {
     pub guild_id: i64,
     pub channel_id: i64,
+    pub application_id: ApplicationId,
 }
 
 pub async fn select(pool: &PgPool, guild_id: i64) -> sqlx::Result<Option<i64>> {
@@ -59,37 +62,37 @@ pub async fn delete(pool: &PgPool, guild_id: i64) -> sqlx::Result<bool> {
 pub async fn targets_for(
     pool: &PgPool,
     discord_id: i64,
-    application_id: i64,
-    slot: &str,
 ) -> sqlx::Result<Vec<SummaryTarget>> {
-    sqlx::query_as!(
-        SummaryTarget,
+    let rows = sqlx::query!(
         r#"
-        SELECT c.guild_id, c.channel_id
+        SELECT c.guild_id, c.channel_id,
+               delivery_application(c.guild_id, c.delivery_application_id) AS "application_id!"
         FROM deadlock_summary_channel c
         JOIN deadlock_guild_members m
           ON m.guild_id = c.guild_id
          AND m.discord_id = $1
          AND m.share_summaries
-        WHERE NOT EXISTS (
+        WHERE delivery_application(c.guild_id, c.delivery_application_id) IS NOT NULL
+          AND NOT EXISTS (
                 SELECT 1 FROM guild_app_modules gm
                 WHERE gm.guild_id = c.guild_id
-                  AND gm.application_id = COALESCE(serving_application(c.guild_id, $3), $2)
+                  AND gm.application_id = delivery_application(c.guild_id, c.delivery_application_id)
                   AND gm.module = 'deadlock'
                   AND NOT gm.enabled
             )
-          AND EXISTS (
-                SELECT 1 FROM guild_presence p
-                WHERE p.guild_id = c.guild_id
-                  AND p.application_id = $2
-                  AND p.left_at IS NULL
-            )
         ORDER BY c.guild_id
         "#,
-        discord_id,
-        application_id,
-        slot
+        discord_id
     )
     .fetch_all(pool)
-    .await
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| SummaryTarget {
+            guild_id: r.guild_id,
+            channel_id: r.channel_id,
+            application_id: ApplicationId::new(as_u64(r.application_id)),
+        })
+        .collect())
 }

@@ -11,6 +11,7 @@ pub mod release;
 pub mod runtime;
 pub mod store;
 pub mod websub;
+mod worker;
 
 pub use announce::announce_pending;
 pub use cron::{YoutubeLeaseCron, YoutubePollCron};
@@ -25,6 +26,8 @@ pub use store::{
     YoutubeAnnounceRow,
     YoutubeChannelRow,
     YoutubeConnection,
+    YoutubeTarget,
     insert_video,
     is_subscribed,
 };
+pub use worker::YoutubeWorker;

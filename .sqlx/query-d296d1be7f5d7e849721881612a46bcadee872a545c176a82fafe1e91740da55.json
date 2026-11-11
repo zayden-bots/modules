@@ -1,0 +1,69 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT a.guild_id, a.channel_id, a.message, a.ping_role_ids,\n               delivery_application(a.guild_id, a.delivery_application_id) AS \"application_id!\"\n        FROM deadlock_patch_announce a\n        WHERE delivery_application(a.guild_id, a.delivery_application_id) IS NOT NULL\n          AND NOT EXISTS (\n                SELECT 1 FROM guild_app_modules m\n                WHERE m.guild_id = a.guild_id\n                  AND m.application_id = delivery_application(a.guild_id, a.delivery_application_id)\n                  AND m.module = 'deadlock'\n                  AND NOT m.enabled\n            )\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "deadlock_patch_announce",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "deadlock_patch_announce",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "message",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deadlock_patch_announce",
+            "name": "message"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "ping_role_ids",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "deadlock_patch_announce",
+            "name": "ping_role_ids"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "application_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "d296d1be7f5d7e849721881612a46bcadee872a545c176a82fafe1e91740da55"
+}

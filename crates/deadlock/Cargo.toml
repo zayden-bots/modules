@@ -17,7 +17,6 @@ async-trait = { workspace = true }
 deadlock-api = { workspace = true }
 futures = { workspace = true, features = ["std", "async-await"] }
 jiff = { workspace = true, features = ["std"] }
-jiff-cron = { workspace = true }
 jiff-sqlx = { workspace = true, features = ["postgres"] }
 moka = { workspace = true, features = ["future"] }
 reqwest = { workspace = true }

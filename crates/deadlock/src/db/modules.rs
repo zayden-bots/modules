@@ -1,31 +1,33 @@
+use serenity::all::ApplicationId;
 use sqlx::PgPool;
+use zayden_core::as_u64;
 
 pub async fn enabled_guilds(
     pool: &PgPool,
     guild_ids: &[i64],
-    application_id: i64,
-    slot: &str,
-) -> sqlx::Result<Vec<i64>> {
-    sqlx::query_scalar!(
+) -> sqlx::Result<Vec<(i64, ApplicationId)>> {
+    let rows = sqlx::query!(
         r#"
-        SELECT p.guild_id
-        FROM guild_presence p
-        WHERE p.guild_id = ANY($1)
-          AND p.application_id = $2
-          AND p.left_at IS NULL
+        SELECT g.id AS "guild_id!",
+               delivery_application(g.id, NULL) AS "application_id!"
+        FROM unnest($1::bigint[]) AS g(id)
+        WHERE delivery_application(g.id, NULL) IS NOT NULL
           AND NOT EXISTS (
                 SELECT 1 FROM guild_app_modules m
-                WHERE m.guild_id = p.guild_id
-                  AND m.application_id = COALESCE(serving_application(p.guild_id, $3), $2)
+                WHERE m.guild_id = g.id
+                  AND m.application_id = delivery_application(g.id, NULL)
                   AND m.module = 'deadlock'
                   AND NOT m.enabled
             )
-        ORDER BY p.guild_id
+        ORDER BY g.id
         "#,
-        guild_ids,
-        application_id,
-        slot
+        guild_ids
     )
     .fetch_all(pool)
-    .await
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| (r.guild_id, ApplicationId::new(as_u64(r.application_id))))
+        .collect())
 }

@@ -1,17 +1,11 @@
 use futures::StreamExt;
-use serenity::all::{
-    CreateComponent,
-    CreateMessage,
-    CreateTextDisplay,
-    Http,
-    MessageFlags,
-};
-use sqlx::PgPool;
+use serenity::all::{CreateComponent, CreateTextDisplay};
 use tracing::error;
 use zayden_core::announce::{allowed_roles, escape, render};
 use zayden_core::limits::message::COMPONENTS_TEXT as MAX_TEXT;
+use zayden_core::{CronCtx, Post};
 
-use crate::db::announce::{self, PatchAnnounceRow};
+use crate::db::announce::{self, PatchAnnounceRow, PatchTarget};
 use crate::db::patches::{self, PatchRow};
 use crate::embeds;
 use crate::error::Result;
@@ -26,10 +20,8 @@ pub const PLACEHOLDERS: &[(&str, &str)] = &[
     ("{link}", "the link to the official patch notes"),
 ];
 
-pub fn patch_message(
-    row: &PatchAnnounceRow,
-    patch: &PatchRow,
-) -> CreateMessage<'static> {
+#[must_use]
+pub fn patch_message(row: &PatchAnnounceRow, patch: &PatchRow) -> Post<'static> {
     let title = escape(&patch.title);
     let content = render(
         row.message.as_deref().unwrap_or(DEFAULT_MESSAGE),
@@ -46,28 +38,22 @@ pub fn patch_message(
         .chain([card])
         .collect::<Vec<_>>();
 
-    CreateMessage::new()
-        .flags(MessageFlags::IS_COMPONENTS_V2)
-        .components(components)
+    Post::components_v2(components)
         .allowed_mentions(allowed_roles(&row.ping_role_ids))
 }
 
-pub async fn announce_ready(
-    http: &Http,
-    pool: &PgPool,
-    application_id: i64,
-    slot: &str,
-) -> Result<usize> {
+pub async fn announce_ready(cx: &CronCtx) -> Result<usize> {
+    let pool = &cx.db;
     let ready = patches::ready(pool).await?;
     if ready.is_empty() {
         return Ok(0);
     }
 
-    let targets = announce::targets(pool, application_id, slot).await?;
+    let targets = announce::targets(pool).await?;
 
     for patch in &ready {
         let posts: Vec<_> =
-            targets.iter().map(|row| post(http, row, patch)).collect();
+            targets.iter().map(|target| post(cx, target, patch)).collect();
 
         futures::stream::iter(posts)
             .buffer_unordered(CONCURRENCY)
@@ -80,13 +66,15 @@ pub async fn announce_ready(
     Ok(ready.len())
 }
 
-async fn post(http: &Http, row: &PatchAnnounceRow, patch: &PatchRow) {
-    let message = patch_message(row, patch);
+async fn post(cx: &CronCtx, target: &PatchTarget, patch: &PatchRow) {
+    let message = patch_message(&target.row, patch);
 
-    if let Err(e) = row.channel().widen().send_message(http, message).await {
+    if let Err(e) =
+        cx.webhooks.send(target.row.channel(), target.application_id, &message).await
+    {
         error!(
             error = ?e,
-            guild_id = row.guild_id,
+            guild_id = target.row.guild_id,
             "deadlock: failed to post patch announcement; it is not retried"
         );
     }

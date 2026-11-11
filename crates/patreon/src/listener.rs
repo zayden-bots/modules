@@ -1,24 +1,21 @@
-use std::sync::Arc;
-
-use serenity::all::Context;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{error, info, warn};
 use zayden_app::events::AppEvent;
-use zayden_app::state::AppState;
+use zayden_core::CronCtx;
 
 use crate::announce_pending;
 
-pub(crate) fn spawn_patreon_listener(ctx: Context, app: Arc<AppState>) {
+pub(crate) fn spawn_patreon_listener(cx: CronCtx) {
     tokio::spawn(async move {
-        let mut rx = app.subscribe();
+        let mut rx = cx.app.subscribe();
 
         loop {
             match rx.recv().await {
                 Ok(AppEvent::PatreonPost(post_id)) => {
                     info!(post_id, "patreon: webhook post received, announcing");
-                    announce(&ctx, &app).await;
+                    announce(&cx).await;
                 },
-                Ok(AppEvent::Resync) => announce(&ctx, &app).await,
+                Ok(AppEvent::Resync) => announce(&cx).await,
                 Ok(
                     AppEvent::ConfigChanged(_)
                     | AppEvent::ModulesChanged { .. }
@@ -28,7 +25,9 @@ pub(crate) fn spawn_patreon_listener(ctx: Context, app: Arc<AppState>) {
                     | AppEvent::ServingChanged(_)
                     | AppEvent::CustomBotsChanged(_)
                     | AppEvent::LoadoutsChanged
-                    | AppEvent::TaskScheduled(_),
+                    | AppEvent::TaskScheduled(_)
+                    | AppEvent::DeliveryChanged(_)
+                    | AppEvent::WebhookBroken { .. },
                 ) => {},
                 Err(RecvError::Lagged(n)) => {
                     warn!(
@@ -45,8 +44,8 @@ pub(crate) fn spawn_patreon_listener(ctx: Context, app: Arc<AppState>) {
     });
 }
 
-async fn announce(ctx: &Context, app: &AppState) {
-    if let Err(e) = announce_pending(&ctx.http, &app.http, &app.db).await {
+async fn announce(cx: &CronCtx) {
+    if let Err(e) = announce_pending(&cx.webhooks, &cx.app.http, &cx.db).await {
         error!(error = ?e, "patreon: failed to announce pending posts");
     }
 }

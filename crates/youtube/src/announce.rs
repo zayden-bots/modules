@@ -3,15 +3,15 @@ use std::time::Duration;
 use futures::StreamExt;
 use jiff::{SignedDuration, Timestamp};
 use reqwest::Client;
-use serenity::all::{CreateMessage, Http};
 use sqlx::PgPool;
 use tracing::{debug, error};
 use zayden_core::announce::{allowed_roles, escape, render};
+use zayden_core::{Post, WebhookPool};
 
 use crate::error::Result;
 use crate::model::video_url;
 use crate::poll;
-use crate::store::{self, PendingVideo, YoutubeAnnounceRow};
+use crate::store::{self, PendingVideo, YoutubeAnnounceRow, YoutubeTarget};
 
 const CLAIM_BATCH: i64 = 20;
 const CONCURRENCY: usize = 5;
@@ -28,7 +28,7 @@ pub const PLACEHOLDERS: &[(&str, &str)] = &[
 pub const MAX_AGE: SignedDuration = SignedDuration::from_hours(48);
 const PING_RETRY: Duration = Duration::from_secs(120);
 
-pub async fn announce_pending(http: &Http, pool: &PgPool) -> Result<()> {
+pub async fn announce_pending(webhooks: &WebhookPool, pool: &PgPool) -> Result<()> {
     let pending = store::claim_pending(pool, CLAIM_BATCH).await?;
     let cutoff = Timestamp::now() - MAX_AGE;
 
@@ -52,14 +52,14 @@ pub async fn announce_pending(http: &Http, pool: &PgPool) -> Result<()> {
             },
         };
 
-        broadcast(http, &video, rows).await;
+        broadcast(webhooks, &video, rows).await;
     }
 
     Ok(())
 }
 
 pub async fn on_ping(
-    http: &Http,
+    webhooks: &WebhookPool,
     client: &Client,
     pool: &PgPool,
     api_key: &str,
@@ -77,7 +77,7 @@ pub async fn on_ping(
         }
     }
 
-    if let Err(e) = announce_pending(http, pool).await {
+    if let Err(e) = announce_pending(webhooks, pool).await {
         error!(error = ?e, channel_id, "youtube: failed to announce a pinged upload");
     }
 }
@@ -96,17 +96,17 @@ pub fn message_content(video: &PendingVideo, row: &YoutubeAnnounceRow) -> String
 }
 
 async fn broadcast(
-    http: &Http,
+    webhooks: &WebhookPool,
     video: &PendingVideo,
-    rows: Vec<YoutubeAnnounceRow>,
+    rows: Vec<YoutubeTarget>,
 ) {
-    futures::stream::iter(rows.into_iter().map(|row| async move {
+    futures::stream::iter(rows.into_iter().map(|target| async move {
+        let YoutubeTarget { row, application_id } = target;
         // The URL alone unfurls into Discord's playable YouTube embed.
-        let message = CreateMessage::new()
-            .content(message_content(video, &row))
+        let post = Post::content(message_content(video, &row))
             .allowed_mentions(allowed_roles(&row.ping_role_ids));
 
-        if let Err(e) = row.channel().widen().send_message(http, message).await {
+        if let Err(e) = webhooks.send(row.channel(), application_id, &post).await {
             error!(
                 error = ?e,
                 guild_id = row.guild_id,

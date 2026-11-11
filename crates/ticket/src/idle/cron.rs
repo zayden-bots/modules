@@ -1,6 +1,6 @@
 use serenity::all::{ForumTagId, Http};
 use tracing::{debug, error};
-use zayden_core::{CronJob, Identity};
+use zayden_core::{CronCtx, CronJob, Identity, WorkerJob, WorkerJobResult};
 
 use crate::batch;
 use crate::idle::act;
@@ -134,10 +134,10 @@ impl SupportIdleStaleCron {
 pub struct SupportIdleGcCron;
 
 impl SupportIdleGcCron {
-    pub fn cron_job() -> Result<CronJob, jiff_cron::error::Error> {
-        CronJob::new("support_idle_gc", "0 0 4 * * * *").map(|job| {
-            job.set_action(move |_ctx, pool| async move {
-                match gc(&pool).await {
+    pub fn worker_job() -> WorkerJobResult {
+        WorkerJob::new("support_idle_gc", "0 0 4 * * * *").map(|job| {
+            job.set_action(move |cx: CronCtx| async move {
+                match gc(&cx.db).await {
                     Ok(n) if n > 0 => debug!(dropped = n, "support idle gc"),
                     Ok(_) => {},
                     Err(e) => error!(error = ?e, "support idle gc failed"),

@@ -1,0 +1,69 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT c.guild_id, c.channel_id, c.leaderboard, c.leaderboard_message_id,\n               delivery_application(c.guild_id, c.delivery_application_id) AS \"application_id!\"\n        FROM deadlock_squad_channel c\n        WHERE c.leaderboard\n          AND delivery_application(c.guild_id, c.delivery_application_id) IS NOT NULL\n          AND NOT EXISTS (\n                SELECT 1 FROM guild_app_modules gm\n                WHERE gm.guild_id = c.guild_id\n                  AND gm.application_id = delivery_application(c.guild_id, c.delivery_application_id)\n                  AND gm.module = 'deadlock'\n                  AND NOT gm.enabled\n            )\n        ORDER BY c.guild_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "deadlock_squad_channel",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "deadlock_squad_channel",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "leaderboard",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "deadlock_squad_channel",
+            "name": "leaderboard"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "leaderboard_message_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "deadlock_squad_channel",
+            "name": "leaderboard_message_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "application_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      null
+    ]
+  },
+  "hash": "eaf84f2c4fb62f6c70da09a01d46ac39fc6cd91c8e541cf08640e9d3545289a2"
+}

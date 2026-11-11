@@ -16,7 +16,6 @@ bungie-api = { workspace = true }
 futures = { workspace = true }
 google-sheets-api = { workspace = true }
 itertools = { workspace = true }
-jiff-cron = { workspace = true }
 secrecy = { workspace = true }
 serenity = { workspace = true }
 sqlx = { workspace = true }

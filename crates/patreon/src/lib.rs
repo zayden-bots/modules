@@ -12,6 +12,7 @@ pub mod release;
 pub mod store;
 pub mod thumbnail;
 pub mod webhook;
+mod worker;
 
 pub use announce::announce_pending;
 pub use cron::PatreonPollCron;
@@ -24,9 +25,11 @@ pub use store::{
     PatreonAnnounceRow,
     PatreonCampaignRow,
     PatreonConnection,
+    PatreonTarget,
     PendingPost,
     insert_post,
     is_subscribed,
     webhook_secrets,
 };
 pub use webhook::{PATREON_EVENT_HEADER, PATREON_SIGNATURE_HEADER, POST_PUBLISH};
+pub use worker::PatreonWorker;

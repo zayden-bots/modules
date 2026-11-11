@@ -60,7 +60,7 @@ async fn a_public_only_guild_is_skipped_for_a_patrons_post(pool: PgPool) {
         .await
         .unwrap()
         .iter()
-        .map(|row| row.guild_id)
+        .map(|target| target.row.guild_id)
         .collect();
     public.sort_unstable();
 
@@ -68,7 +68,7 @@ async fn a_public_only_guild_is_skipped_for_a_patrons_post(pool: PgPool) {
         .await
         .unwrap()
         .iter()
-        .map(|row| row.guild_id)
+        .map(|target| target.row.guild_id)
         .collect();
 
     assert_eq!(public, [1, 2]);
@@ -83,7 +83,7 @@ async fn a_guild_never_receives_a_campaign_it_did_not_authorise(pool: PgPool) {
     let recipients = PatreonAnnounceRow::for_post(&pool, "100", true).await.unwrap();
 
     assert!(
-        recipients.iter().all(|row| row.guild_id != 3),
+        recipients.iter().all(|target| target.row.guild_id != 3),
         "guild 3 is connected to campaign 300"
     );
 }
@@ -240,7 +240,10 @@ async fn deleting_a_connection_unsubscribes_the_guild(pool: PgPool) {
     );
 
     let recipients = PatreonAnnounceRow::for_post(&pool, "100", true).await.unwrap();
-    assert_eq!(recipients.iter().map(|row| row.guild_id).collect::<Vec<_>>(), [1]);
+    assert_eq!(
+        recipients.iter().map(|target| target.row.guild_id).collect::<Vec<_>>(),
+        [1]
+    );
 
     assert_eq!(webhook_secrets(&pool, "100").await.unwrap(), ["secret-1"]);
 }

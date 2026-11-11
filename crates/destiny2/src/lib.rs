@@ -7,6 +7,8 @@ pub mod error;
 pub mod loadouts;
 pub mod raid_guides;
 pub mod slash_commands;
+mod worker;
 pub use discord::{Destiny2Module, ParentToken, spawn_cache_listener};
 pub use endgame_analysis::EndgameAnalysisError;
 pub use error::{DestinyError, DraftError, Result, SaveError};
+pub use worker::Destiny2Worker;

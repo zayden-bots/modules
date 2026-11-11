@@ -17,6 +17,7 @@ pub mod runtime;
 pub mod settings;
 pub mod stats;
 pub mod transport;
+mod worker;
 
 pub use cache::JellyfinCaches;
 pub use commands::Jellyfin;
@@ -31,3 +32,4 @@ pub use runtime::{JellyfinRuntime, runtime_from_config};
 pub use settings::{JellyfinConfig, JellyfinSettings, JellyfinStore};
 pub use stats::Streak;
 pub use transport::{JellyfinClient, PlaybackClient, SeerClient};
+pub use worker::JellyfinWorker;

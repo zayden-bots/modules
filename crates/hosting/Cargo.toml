@@ -16,7 +16,6 @@ zayden-core = { workspace = true }
 
 async-trait = { workspace = true }
 jiff = { workspace = true, features = ["std"] }
-jiff-cron = { workspace = true }
 jiff-sqlx = { workspace = true }
 rand = { workspace = true, features = ["std", "std_rng"] }
 reqwest = { workspace = true, features = ["rustls", "http2", "json", "query"] }

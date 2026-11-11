@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT c.guild_id, c.channel_id,\n               delivery_application(c.guild_id, c.delivery_application_id) AS \"application_id!\"\n        FROM deadlock_squad_channel c\n        JOIN deadlock_guild_members m\n          ON m.guild_id = c.guild_id\n         AND m.discord_id = $1\n         AND m.squad\n        WHERE delivery_application(c.guild_id, c.delivery_application_id) IS NOT NULL\n          AND NOT EXISTS (\n                SELECT 1 FROM guild_app_modules gm\n                WHERE gm.guild_id = c.guild_id\n                  AND gm.application_id = delivery_application(c.guild_id, c.delivery_application_id)\n                  AND gm.module = 'deadlock'\n                  AND NOT gm.enabled\n            )\n        ORDER BY c.guild_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "deadlock_squad_channel",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "channel_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "deadlock_squad_channel",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "application_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "6b4c919b03b203d924576ba4df03d586488da99d17abd210d97042af83eaef26"
+}

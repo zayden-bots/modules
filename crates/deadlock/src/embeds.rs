@@ -9,9 +9,8 @@ use serenity::all::{
     CreateComponent,
     CreateContainer,
     CreateContainerComponent,
-    CreateMessage,
-    MessageFlags,
 };
+use zayden_core::Post;
 use zayden_core::limits::message::{
     COMPONENTS as MAX_COMPONENTS,
     COMPONENTS_TEXT as MAX_TEXT,
@@ -493,7 +492,8 @@ fn patch_container(
     CreateComponent::Container(CreateContainer::new(parts).accent_colour(ACCENT))
 }
 
-pub fn briefing_dm(patch: &PatchRow, hero_ids: &[u32]) -> CreateMessage<'static> {
+#[must_use]
+pub fn briefing_dm(patch: &PatchRow, hero_ids: &[u32]) -> Post<'static> {
     let heroes = patch.diff.as_ref().map_or_else(Vec::new, |diff| {
         hero_ids
             .iter()
@@ -510,9 +510,7 @@ pub fn briefing_dm(patch: &PatchRow, hero_ids: &[u32]) -> CreateMessage<'static>
     );
     let container = patch_container(header, Some(&filtered), MAX_TEXT);
 
-    CreateMessage::new()
-        .flags(MessageFlags::IS_COMPONENTS_V2)
-        .components(vec![container])
+    Post::components_v2(vec![container])
         .allowed_mentions(CreateAllowedMentions::new())
 }
 
@@ -654,22 +652,22 @@ pub fn summary_component(
     CreateComponent::Container(CreateContainer::new(parts).accent_colour(ACCENT))
 }
 
+#[must_use]
 pub fn summary_dm(
     summary: &MatchSummary,
     hero: Option<&Hero>,
     items: &ItemIndex,
-) -> CreateMessage<'static> {
-    CreateMessage::new()
-        .flags(MessageFlags::IS_COMPONENTS_V2)
-        .components(vec![summary_component(summary, hero, items, None)])
+) -> Post<'static> {
+    Post::components_v2(vec![summary_component(summary, hero, items, None)])
         .allowed_mentions(CreateAllowedMentions::new())
 }
 
+#[must_use]
 pub fn summary_post(
     sections: &[(&MatchSummary, i64)],
     heroes: &HeroIndex,
     items: &ItemIndex,
-) -> CreateMessage<'static> {
+) -> Post<'static> {
     let mut used = 0;
     let mut components = Vec::new();
 
@@ -690,10 +688,7 @@ pub fn summary_post(
         ));
     }
 
-    CreateMessage::new()
-        .flags(MessageFlags::IS_COMPONENTS_V2)
-        .components(components)
-        .allowed_mentions(CreateAllowedMentions::new())
+    Post::components_v2(components).allowed_mentions(CreateAllowedMentions::new())
 }
 
 fn squad_line(event: &SquadEvent, ranks: &[Rank]) -> String {
@@ -720,7 +715,8 @@ fn squad_line(event: &SquadEvent, ranks: &[Rank]) -> String {
     }
 }
 
-pub fn squad_post(events: &[SquadEvent], ranks: &[Rank]) -> CreateMessage<'static> {
+#[must_use]
+pub fn squad_post(events: &[SquadEvent], ranks: &[Rank]) -> Post<'static> {
     let mut used = 0;
     let body = events
         .iter()
@@ -732,12 +728,10 @@ pub fn squad_post(events: &[SquadEvent], ranks: &[Rank]) -> CreateMessage<'stati
         .collect::<Vec<_>>()
         .join("\n");
 
-    CreateMessage::new()
-        .flags(MessageFlags::IS_COMPONENTS_V2)
-        .components(vec![CreateComponent::Container(
-            CreateContainer::new(vec![text(body)]).accent_colour(ACCENT),
-        )])
-        .allowed_mentions(CreateAllowedMentions::new())
+    Post::components_v2(vec![CreateComponent::Container(
+        CreateContainer::new(vec![text(body)]).accent_colour(ACCENT),
+    )])
+    .allowed_mentions(CreateAllowedMentions::new())
 }
 
 fn leaderboard_line(
@@ -783,11 +777,8 @@ pub fn leaderboard_component(
     )
 }
 
-pub fn leaderboard_create(
-    component: CreateComponent<'static>,
-) -> CreateMessage<'static> {
-    CreateMessage::new()
-        .flags(MessageFlags::IS_COMPONENTS_V2)
-        .components(vec![component])
+#[must_use]
+pub fn leaderboard_create(component: CreateComponent<'static>) -> Post<'static> {
+    Post::components_v2(vec![component])
         .allowed_mentions(CreateAllowedMentions::new())
 }

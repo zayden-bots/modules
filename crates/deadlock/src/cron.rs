@@ -3,10 +3,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use deadlock_api::DeadlockApiError;
 use jiff::Timestamp;
-use serenity::all::Http;
 use sqlx::PgPool;
 use tracing::{debug, error, info, warn};
-use zayden_core::{CronJob, Identity};
+use zayden_core::{CronCtx, WorkerJob, WorkerJobResult};
 
 use crate::announce::announce_ready;
 use crate::briefing::{self, BriefingOutcome};
@@ -43,28 +42,19 @@ impl RunGuard {
 pub struct DeadlockPatchCron;
 
 impl DeadlockPatchCron {
-    pub fn cron_job(
-        api: Arc<DeadlockApi>,
-        me: Identity,
-    ) -> Result<CronJob, jiff_cron::error::Error> {
+    pub fn cron_job(api: Arc<DeadlockApi>) -> WorkerJobResult {
         let guard = Arc::new(RunGuard::default());
 
-        CronJob::new("deadlock_patch_watch", "0 */5 * * * * *").map(|job| {
-            job.set_action(move |ctx, pool| {
+        WorkerJob::new("deadlock_patch_watch", "0 */5 * * * * *").map(|job| {
+            job.set_action(move |cx| {
                 let api = Arc::clone(&api);
                 let guard = Arc::clone(&guard);
 
                 async move {
-                    watch(&api, &pool).await;
+                    watch(&api, &cx.db).await;
 
                     if let Some(ticket) = guard.try_start() {
-                        tokio::spawn(announce(
-                            ticket,
-                            Arc::clone(&ctx.http),
-                            pool,
-                            me.application_i64(),
-                            me.slot.as_str(),
-                        ));
+                        tokio::spawn(announce(ticket, cx));
                     }
                 }
             })
@@ -72,14 +62,8 @@ impl DeadlockPatchCron {
     }
 }
 
-async fn announce(
-    _ticket: RunTicket,
-    http: Arc<Http>,
-    pool: PgPool,
-    application_id: i64,
-    slot: &'static str,
-) {
-    if let Err(e) = announce_ready(&http, &pool, application_id, slot).await {
+async fn announce(_ticket: RunTicket, cx: CronCtx) {
+    if let Err(e) = announce_ready(&cx).await {
         error!(error = ?e, "deadlock: failed to announce patches");
     }
 }
@@ -87,14 +71,11 @@ async fn announce(
 pub struct DeadlockMatchCron;
 
 impl DeadlockMatchCron {
-    pub fn cron_job(
-        api: Arc<DeadlockApi>,
-        me: Identity,
-    ) -> Result<CronJob, jiff_cron::error::Error> {
+    pub fn cron_job(api: Arc<DeadlockApi>) -> WorkerJobResult {
         let guard = Arc::new(RunGuard::default());
 
-        CronJob::new("deadlock_match_poll", "0 */3 * * * * *").map(|job| {
-            job.set_action(move |ctx, pool| {
+        WorkerJob::new("deadlock_match_poll", "0 */3 * * * * *").map(|job| {
+            job.set_action(move |cx| {
                 let api = Arc::clone(&api);
                 let guard = Arc::clone(&guard);
 
@@ -103,20 +84,12 @@ impl DeadlockMatchCron {
                         return;
                     };
 
-                    match match_poll::poll(&api, &pool, Timestamp::now()).await {
+                    match match_poll::poll(&api, &cx.db, Timestamp::now()).await {
                         Ok((outcome, jobs)) => {
                             debug!(?outcome, "deadlock: match poll finished");
 
                             if !jobs.is_empty() {
-                                tokio::spawn(summarize(
-                                    ticket,
-                                    Arc::clone(&ctx.http),
-                                    pool,
-                                    api,
-                                    me.application_i64(),
-                                    me.slot.as_str(),
-                                    jobs,
-                                ));
+                                tokio::spawn(summarize(ticket, cx, api, jobs));
                             }
                         },
                         Err(DeadlockError::Api(
@@ -137,14 +110,11 @@ impl DeadlockMatchCron {
 
 async fn summarize(
     _ticket: RunTicket,
-    http: Arc<Http>,
-    pool: PgPool,
+    cx: CronCtx,
     api: Arc<DeadlockApi>,
-    application_id: i64,
-    slot: &'static str,
     jobs: Vec<SummaryJob>,
 ) {
-    match deliver(&http, &pool, &api, application_id, slot, jobs).await {
+    match deliver(&cx, &api, jobs).await {
         Ok(outcome) => debug!(?outcome, "deadlock: match summaries delivered"),
         Err(e) => error!(error = ?e, "deadlock: failed to deliver match summaries"),
     }
@@ -153,14 +123,11 @@ async fn summarize(
 pub struct DeadlockRankCron;
 
 impl DeadlockRankCron {
-    pub fn cron_job(
-        api: Arc<DeadlockApi>,
-        me: Identity,
-    ) -> Result<CronJob, jiff_cron::error::Error> {
+    pub fn cron_job(api: Arc<DeadlockApi>) -> WorkerJobResult {
         let guard = Arc::new(RunGuard::default());
 
-        CronJob::new("deadlock_rank_poll", "0 7,37 * * * * *").map(|job| {
-            job.set_action(move |ctx, pool| {
+        WorkerJob::new("deadlock_rank_poll", "0 7,37 * * * * *").map(|job| {
+            job.set_action(move |cx| {
                 let api = Arc::clone(&api);
                 let guard = Arc::clone(&guard);
 
@@ -169,20 +136,12 @@ impl DeadlockRankCron {
                         return;
                     };
 
-                    match rank_poll::poll(&api, &pool, Timestamp::now()).await {
+                    match rank_poll::poll(&api, &cx.db, Timestamp::now()).await {
                         Ok((outcome, events)) => {
                             debug!(?outcome, "deadlock: rank poll finished");
 
                             if !events.is_empty() {
-                                tokio::spawn(announce_squad(
-                                    ticket,
-                                    Arc::clone(&ctx.http),
-                                    pool,
-                                    api,
-                                    me.application_i64(),
-                                    me.slot.as_str(),
-                                    events,
-                                ));
+                                tokio::spawn(announce_squad(ticket, cx, api, events));
                             }
                         },
                         Err(DeadlockError::Api(
@@ -203,16 +162,11 @@ impl DeadlockRankCron {
 
 async fn announce_squad(
     _ticket: RunTicket,
-    http: Arc<Http>,
-    pool: PgPool,
+    cx: CronCtx,
     api: Arc<DeadlockApi>,
-    application_id: i64,
-    slot: &'static str,
     events: Vec<SquadEvent>,
 ) {
-    match squad_deliver::deliver(&http, &pool, &api, application_id, slot, events)
-        .await
-    {
+    match squad_deliver::deliver(&cx, &api, events).await {
         Ok(posts) => debug!(posts, "deadlock: squad events delivered"),
         Err(e) => error!(error = ?e, "deadlock: failed to deliver squad events"),
     }
@@ -221,27 +175,17 @@ async fn announce_squad(
 pub struct DeadlockLeaderboardCron;
 
 impl DeadlockLeaderboardCron {
-    pub fn cron_job(
-        api: Arc<DeadlockApi>,
-        me: Identity,
-    ) -> Result<CronJob, jiff_cron::error::Error> {
+    pub fn cron_job(api: Arc<DeadlockApi>) -> WorkerJobResult {
         let guard = Arc::new(RunGuard::default());
 
-        CronJob::new("deadlock_leaderboard", "0 0 18 * * Sun *").map(|job| {
-            job.set_action(move |ctx, pool| {
+        WorkerJob::new("deadlock_leaderboard", "0 0 18 * * Sun *").map(|job| {
+            job.set_action(move |cx| {
                 let api = Arc::clone(&api);
                 let guard = Arc::clone(&guard);
 
                 async move {
                     if let Some(ticket) = guard.try_start() {
-                        tokio::spawn(post_leaderboards(
-                            ticket,
-                            Arc::clone(&ctx.http),
-                            pool,
-                            api,
-                            me.application_i64(),
-                            me.slot.as_str(),
-                        ));
+                        tokio::spawn(post_leaderboards(ticket, cx, api));
                     }
                 }
             })
@@ -249,17 +193,8 @@ impl DeadlockLeaderboardCron {
     }
 }
 
-async fn post_leaderboards(
-    _ticket: RunTicket,
-    http: Arc<Http>,
-    pool: PgPool,
-    api: Arc<DeadlockApi>,
-    application_id: i64,
-    slot: &'static str,
-) {
-    match squad_deliver::post_leaderboards(&http, &pool, &api, application_id, slot)
-        .await
-    {
+async fn post_leaderboards(_ticket: RunTicket, cx: CronCtx, api: Arc<DeadlockApi>) {
+    match squad_deliver::post_leaderboards(&cx, &api).await {
         Ok(posts) => debug!(posts, "deadlock: squad leaderboards posted"),
         Err(e) => error!(error = ?e, "deadlock: failed to post squad leaderboards"),
     }
@@ -268,16 +203,16 @@ async fn post_leaderboards(
 pub struct DeadlockBriefingCron;
 
 impl DeadlockBriefingCron {
-    pub fn cron_job() -> Result<CronJob, jiff_cron::error::Error> {
+    pub fn cron_job() -> WorkerJobResult {
         let guard = Arc::new(RunGuard::default());
 
-        CronJob::new("deadlock_patch_briefing", "30 */10 * * * * *").map(|job| {
-            job.set_action(move |ctx, pool| {
+        WorkerJob::new("deadlock_patch_briefing", "30 */10 * * * * *").map(|job| {
+            job.set_action(move |cx| {
                 let guard = Arc::clone(&guard);
 
                 async move {
                     if let Some(ticket) = guard.try_start() {
-                        tokio::spawn(brief(ticket, Arc::clone(&ctx.http), pool));
+                        tokio::spawn(brief(ticket, cx));
                     }
                 }
             })
@@ -285,8 +220,8 @@ impl DeadlockBriefingCron {
     }
 }
 
-async fn brief(_ticket: RunTicket, http: Arc<Http>, pool: PgPool) {
-    match briefing::run(&http, &pool, Timestamp::now()).await {
+async fn brief(_ticket: RunTicket, cx: CronCtx) {
+    match briefing::run(&cx, Timestamp::now()).await {
         Ok(outcome) if outcome == BriefingOutcome::default() => {
             debug!("deadlock: no patch briefings to send");
         },
@@ -298,10 +233,10 @@ async fn brief(_ticket: RunTicket, http: Arc<Http>, pool: PgPool) {
 pub struct DeadlockCacheGcCron;
 
 impl DeadlockCacheGcCron {
-    pub fn cron_job() -> Result<CronJob, jiff_cron::error::Error> {
-        CronJob::new("deadlock_cache_gc", "0 15 4 * * * *").map(|job| {
-            job.set_action(|_ctx, pool| async move {
-                match gc::run(&pool, Timestamp::now()).await {
+    pub fn cron_job() -> WorkerJobResult {
+        WorkerJob::new("deadlock_cache_gc", "0 15 4 * * * *").map(|job| {
+            job.set_action(|cx| async move {
+                match gc::run(&cx.db, Timestamp::now()).await {
                     Ok(outcome) => info!(?outcome, "deadlock: cache gc finished"),
                     Err(e) => error!(error = ?e, "deadlock: cache gc failed"),
                 }

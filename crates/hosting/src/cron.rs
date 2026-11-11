@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use jiff_cron::error::Error as CronError;
-use serenity::all::{CreateMessage, Http, UserId};
+use jiff::Timestamp;
+use serenity::all::{ApplicationId, UserId};
 use tracing::{error, warn};
 use zayden_app::entitlement::EntitlementService;
-use zayden_core::cron::CronJob;
+use zayden_core::{CronCtx, Post, WorkerJob, WorkerJobResult, as_u64, queue_dm};
 
 use crate::sweep::{self, Claimed};
 use crate::{HostingRuntime, pricing, store};
@@ -14,14 +14,14 @@ const BATCH: i64 = 50;
 pub struct HostingReminderCron;
 
 impl HostingReminderCron {
-    pub fn cron_job(runtime: Arc<HostingRuntime>) -> Result<CronJob, CronError> {
-        CronJob::new("hosting_reminder", "0 0 * * * * *").map(|job| {
-            job.set_action(move |ctx, pool| {
+    pub fn worker_job(runtime: Arc<HostingRuntime>) -> WorkerJobResult {
+        WorkerJob::new("hosting_reminder", "0 0 * * * * *").map(|job| {
+            job.set_action(move |cx: CronCtx| {
                 let runtime = Arc::clone(&runtime);
                 async move {
                     let days = clamp_days(runtime.config.reminder_days);
 
-                    let due = match sweep::claim_reminders(&pool, days, BATCH).await
+                    let due = match sweep::claim_reminders(&cx.db, days, BATCH).await
                     {
                         Ok(due) => due,
                         Err(e) => {
@@ -31,7 +31,7 @@ impl HostingReminderCron {
                     };
 
                     for row in due {
-                        remind(&ctx.http, &runtime, &row).await;
+                        remind(&cx, &runtime, &row).await;
                     }
                 }
             })
@@ -42,21 +42,21 @@ impl HostingReminderCron {
 pub struct HostingExpireCron;
 
 impl HostingExpireCron {
-    pub fn cron_job(
+    pub fn worker_job(
         runtime: Arc<HostingRuntime>,
         entitlements: Arc<EntitlementService>,
-    ) -> Result<CronJob, CronError> {
-        CronJob::new("hosting_expire", "0 */5 * * * * *").map(|job| {
-            job.set_action(move |ctx, pool| {
+    ) -> WorkerJobResult {
+        WorkerJob::new("hosting_expire", "0 */5 * * * * *").map(|job| {
+            job.set_action(move |cx: CronCtx| {
                 let runtime = Arc::clone(&runtime);
                 let entitlements = Arc::clone(&entitlements);
                 async move {
                     let grace = clamp_days(runtime.config.grace_days);
 
-                    match sweep::convert_included_trials(&pool, BATCH).await {
+                    match sweep::convert_included_trials(&cx.db, BATCH).await {
                         Ok(rows) => {
                             for row in rows {
-                                notify_converted(&ctx.http, &row).await;
+                                notify_converted(&cx, &row).await;
                             }
                         },
                         Err(e) => {
@@ -64,19 +64,18 @@ impl HostingExpireCron {
                         },
                     }
 
-                    match sweep::claim_expired(&pool, grace, BATCH).await {
+                    match sweep::claim_expired(&cx.db, grace, BATCH).await {
                         Ok(rows) => {
                             for row in rows {
-                                suspend(&ctx.http, &runtime, &row).await;
+                                suspend(&cx, &runtime, &row).await;
                             }
                         },
                         Err(e) => error!(error = %e, "hosting expire sweep failed"),
                     }
 
-                    revalidate(&ctx.http, &runtime, &entitlements, &pool, grace)
-                        .await;
+                    revalidate(&cx, &runtime, &entitlements, grace).await;
 
-                    runtime.unsuspend_due(&pool).await;
+                    runtime.unsuspend_due(&cx.db).await;
                 }
             })
         })
@@ -86,12 +85,12 @@ impl HostingExpireCron {
 pub struct HostingDeleteCron;
 
 impl HostingDeleteCron {
-    pub fn cron_job(runtime: Arc<HostingRuntime>) -> Result<CronJob, CronError> {
-        CronJob::new("hosting_delete", "0 30 * * * * *").map(|job| {
-            job.set_action(move |ctx, pool| {
+    pub fn worker_job(runtime: Arc<HostingRuntime>) -> WorkerJobResult {
+        WorkerJob::new("hosting_delete", "0 30 * * * * *").map(|job| {
+            job.set_action(move |cx: CronCtx| {
                 let runtime = Arc::clone(&runtime);
                 async move {
-                    let due = match sweep::claim_deletions(&pool, BATCH).await {
+                    let due = match sweep::claim_deletions(&cx.db, BATCH).await {
                         Ok(due) => due,
                         Err(e) => {
                             error!(error = %e, "hosting delete sweep failed");
@@ -100,7 +99,7 @@ impl HostingDeleteCron {
                     };
 
                     for row in due {
-                        delete(&ctx.http, &runtime, &pool, &row).await;
+                        delete(&cx, &runtime, &row).await;
                     }
                 }
             })
@@ -108,7 +107,7 @@ impl HostingDeleteCron {
     }
 }
 
-async fn remind(http: &Http, runtime: &HostingRuntime, row: &Claimed) {
+async fn remind(cx: &CronCtx, runtime: &HostingRuntime, row: &Claimed) {
     let when = row
         .expires_at()
         .map_or_else(|| "soon".to_owned(), |t| format!("<t:{}:R>", t.as_second()));
@@ -130,20 +129,22 @@ async fn remind(http: &Http, runtime: &HostingRuntime, row: &Claimed) {
         )
     };
 
-    dm(http, row.owner(), &content).await;
+    let key = format!("hosting:{}:reminder:{}", row.id, expires_unix(row));
+    notify(cx, target(cx, row), row.owner(), key, content).await;
 }
 
-async fn notify_converted(http: &Http, row: &Claimed) {
+async fn notify_converted(cx: &CronCtx, row: &Claimed) {
     let content = format!(
         "Your **{}** trial has ended, and your subscription covers this plan — \
          the server stays up at no extra cost.",
         row.game_key
     );
 
-    dm(http, row.owner(), &content).await;
+    let key = format!("hosting:{}:converted", row.id);
+    notify(cx, target(cx, row), row.owner(), key, content).await;
 }
 
-async fn suspend(http: &Http, runtime: &HostingRuntime, row: &Claimed) {
+async fn suspend(cx: &CronCtx, runtime: &HostingRuntime, row: &Claimed) {
     if let Some(server_id) = row.pelican_server_id
         && let Err(e) = runtime.pelican.suspend(server_id).await
     {
@@ -172,15 +173,11 @@ async fn suspend(http: &Http, runtime: &HostingRuntime, row: &Claimed) {
         )
     };
 
-    dm(http, row.owner(), &content).await;
+    let key = format!("hosting:{}:suspended:{}", row.id, expires_unix(row));
+    notify(cx, target(cx, row), row.owner(), key, content).await;
 }
 
-async fn delete(
-    http: &Http,
-    runtime: &HostingRuntime,
-    pool: &sqlx::PgPool,
-    row: &Claimed,
-) {
+async fn delete(cx: &CronCtx, runtime: &HostingRuntime, row: &Claimed) {
     if let Some(server_id) = row.pelican_server_id
         && let Err(e) = runtime.pelican.delete_server(server_id).await
     {
@@ -190,7 +187,7 @@ async fn delete(
         return;
     }
 
-    if let Err(e) = store::mark_deleted(pool, row.id).await {
+    if let Err(e) = store::mark_deleted(&cx.db, row.id).await {
         error!(error = %e, row = row.id, "hosting: could not mark row deleted");
         return;
     }
@@ -201,17 +198,17 @@ async fn delete(
         row.game_key
     );
 
-    dm(http, row.owner(), &content).await;
+    let key = format!("hosting:{}:deleted", row.id);
+    notify(cx, target(cx, row), row.owner(), key, content).await;
 }
 
 async fn revalidate(
-    http: &Http,
+    cx: &CronCtx,
     runtime: &HostingRuntime,
     entitlements: &EntitlementService,
-    pool: &sqlx::PgPool,
     grace: i32,
 ) {
-    let rows = match sweep::entitlement_backed(pool, BATCH).await {
+    let rows = match sweep::entitlement_backed(&cx.db, BATCH).await {
         Ok(rows) => rows,
         Err(e) => {
             error!(error = %e, "hosting entitlement revalidation failed");
@@ -230,20 +227,41 @@ async fn revalidate(
             continue;
         }
 
-        if let Err(e) = sweep::suspend(pool, row.id, grace).await {
+        if let Err(e) = sweep::suspend(&cx.db, row.id, grace).await {
             error!(error = %e, row = row.id, "hosting: suspend failed");
             continue;
         }
 
-        suspend(http, runtime, &row).await;
+        suspend(cx, runtime, &row).await;
     }
 }
 
-async fn dm(http: &Http, user: UserId, content: &str) {
-    if let Err(e) =
-        user.direct_message(http, CreateMessage::new().content(content)).await
+fn target(cx: &CronCtx, row: &Claimed) -> ApplicationId {
+    ApplicationId::new(row.dm_application_id.map_or(cx.app.zayden_id, as_u64))
+}
+
+fn expires_unix(row: &Claimed) -> i64 {
+    row.expires_at().map_or(0, Timestamp::as_second)
+}
+
+async fn notify(
+    cx: &CronCtx,
+    target: ApplicationId,
+    user: UserId,
+    key: String,
+    content: String,
+) {
+    if let Err(e) = queue_dm(
+        &cx.db,
+        target,
+        user,
+        key,
+        Timestamp::now(),
+        &Post::content(content),
+    )
+    .await
     {
-        warn!(error = %e, %user, "hosting: could not DM the owner");
+        warn!(error = %e, %user, "hosting: could not queue the owner DM");
     }
 }
 

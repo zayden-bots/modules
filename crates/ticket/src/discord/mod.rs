@@ -36,7 +36,6 @@ use zayden_core::{
 use crate::{
     SupportIdleCloseCron,
     SupportIdleCron,
-    SupportIdleGcCron,
     SupportIdleStaleCron,
     WikiIndex,
 };
@@ -81,10 +80,6 @@ impl Module for TicketModule {
             SupportIdleCloseCron::cron_job(me),
             SupportIdleStaleCron::cron_job(me),
         ]
-    }
-
-    fn worker_jobs(&self) -> Vec<CronResult> {
-        vec![SupportIdleGcCron::cron_job()]
     }
 
     fn on_start(&self, cx: &StartCtx<'_>) {

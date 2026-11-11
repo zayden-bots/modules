@@ -30,3 +30,11 @@ INSERT INTO youtube_announce (guild_id, channel_id)
 VALUES
     (1, 1001),
     (3, 1003);
+
+INSERT INTO applications (application_id, slot, kind, bot_user_id, name)
+VALUES (1000, 'zayden', 'default', 1001, 'Zayden');
+
+INSERT INTO guild_presence (guild_id, application_id, left_at)
+VALUES
+    (1, 1000, NULL),
+    (3, 1000, NULL);

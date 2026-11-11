@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use deadlock_api::DeadlockApiError;
-use zayden_core::error::{HandlerError, Respond};
+use zayden_core::error::{DeliveryError, HandlerError, Respond};
 
 pub type Result<T> = std::result::Result<T, DeadlockError>;
 
@@ -37,6 +37,8 @@ pub enum DeadlockError {
     Sqlx(#[from] sqlx::Error),
     #[error(transparent)]
     Serenity(#[from] serenity::Error),
+    #[error(transparent)]
+    Delivery(#[from] DeliveryError),
 }
 
 impl DeadlockError {
@@ -73,7 +75,8 @@ impl Respond for DeadlockError {
             | Self::PatchDate(_)
             | Self::Encode { .. }
             | Self::Sqlx(_)
-            | Self::Serenity(_) => None,
+            | Self::Serenity(_)
+            | Self::Delivery(_) => None,
         }
     }
 }
