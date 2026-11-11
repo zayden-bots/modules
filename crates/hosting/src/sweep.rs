@@ -1,7 +1,7 @@
 use jiff::Timestamp;
 use serenity::all::UserId;
 use sqlx::PgPool;
-use zayden_core::{Identity, as_u64};
+use zayden_core::as_u64;
 
 use crate::error::Result;
 use crate::pricing::Plan;
@@ -162,7 +162,6 @@ pub async fn claim_reminders(
     pool: &PgPool,
     reminder_days: i32,
     limit: i64,
-    me: Identity,
 ) -> Result<Vec<Claimed>> {
     let rows = sqlx::query_as!(
         Claimed,
@@ -174,7 +173,6 @@ pub async fn claim_reminders(
               AND s.reminded_at IS NULL
               AND s.paid_until IS NOT NULL
               AND s.paid_until < now() + make_interval(days => $2)
-              AND (s.application_id = $3 OR (s.application_id IS NULL AND $4))
             ORDER BY s.paid_until
             LIMIT $1
             FOR UPDATE OF s SKIP LOCKED
@@ -190,9 +188,7 @@ pub async fn claim_reminders(
             coalesce(s.paid_until, s.trial_ends_at) AS "expires_at: jiff_sqlx::Timestamp"
         "#,
         limit,
-        reminder_days,
-        me.application_i64(),
-        me.is_primary()
+        reminder_days
     )
     .fetch_all(pool)
     .await?;

@@ -13,6 +13,7 @@ use jellyfin::components::{
 };
 use jellyfin::runtime::JellyfinRuntime;
 use serenity::all::FullEvent;
+use zayden_app::tasks::Task;
 use zayden_core::ctx::{ComponentCtx, ModalCtx};
 use zayden_core::error::HandlerError;
 use zayden_core::module::{ModuleComponent, ModuleModal};
@@ -24,6 +25,7 @@ use zayden_core::{
     Module,
     OverlapError,
     RegistryBuilder,
+    TaskCtx,
 };
 
 use self::watch::{Watch, apply};
@@ -34,6 +36,7 @@ use crate::components::{
     PARTY_LEAVE_PREFIX,
     party,
 };
+use crate::party::tasks;
 
 fn suffix(cx: &ComponentCtx<'_>, prefix: &str) -> String {
     cx.interaction.data.custom_id.strip_prefix(prefix).unwrap_or_default().to_owned()
@@ -104,7 +107,7 @@ impl ModuleComponent for PartyCancel {
         let suffix = suffix(cx, PARTY_CANCEL_PREFIX);
 
         let scheduled = party::cancel(cx, &runtime, &suffix).await?;
-        apply(cx.ctx, &runtime, scheduled).await;
+        apply(&cx.app.db, cx.me, scheduled).await;
 
         Ok(())
     }
@@ -227,19 +230,32 @@ impl Module for WatchModule {
             return Ok(());
         };
 
-        // Party provisioning and cleanup are lost with the in-memory cron jobs,
-        // so anything the bot was down for has to be caught up here.
-        if let Some(runtime) = self.runtime.as_option() {
-            crate::events::guild_create(cx.ctx, runtime, &cx.app.db, guild.id).await;
+        if self.runtime.as_option().is_some() {
+            crate::events::guild_create(&cx.app.db, guild.id, cx.me).await;
         }
 
         Ok(())
     }
 
-    // Guest accounts are real accounts on a real media server, so the
-    // reaper is registered alongside the refresh jobs rather than being
-    // left to the in-memory per-party schedules.
-    fn cron_jobs(&self) -> Vec<CronResult> {
+    fn task_kinds(&self) -> &'static [&'static str] {
+        &[tasks::PROVISION, tasks::ANNOUNCE, tasks::CLEANUP]
+    }
+
+    async fn run_task(
+        &self,
+        cx: &TaskCtx<'_>,
+        task: &Task,
+    ) -> Result<(), HandlerError> {
+        let Some(runtime) = self.runtime.as_option() else {
+            return Ok(());
+        };
+
+        tasks::run(&cx.ctx.http, runtime, &cx.app.db, task)
+            .await
+            .map_err(HandlerError::new)
+    }
+
+    fn worker_jobs(&self) -> Vec<CronResult> {
         self.runtime.as_option().map_or_else(Vec::new, |runtime| {
             vec![
                 JellyfinPartyReaperCron::cron_job(Arc::clone(runtime)),

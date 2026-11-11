@@ -21,9 +21,8 @@ use zayden_core::limits::embed::FIELD_VALUE as MAX_FIELD_VALUE;
 use zayden_core::{Identity, UserTimezone, as_u64, parse_modal_components};
 
 use super::start_time;
-use crate::tasks;
 use crate::templates::{DefaultTemplate, Template};
-use crate::{ACTIVITIES, LfgError, PostBuilder, PostRow, Result};
+use crate::{ACTIVITIES, LfgError, PostBuilder, PostRow, Result, tasks};
 
 #[derive(FromRow)]
 pub struct GuildRow {

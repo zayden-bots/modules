@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE support_thread_activity SET application_id = 99",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "1153d6b1652df8a72092a482082cf8a14431bd807e13274f797432848b48dde6"
+}

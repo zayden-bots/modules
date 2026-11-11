@@ -12,7 +12,8 @@ use zayden_core::module::{ModuleComponent, ModuleModal};
 use zayden_core::scope::IdMatch;
 use zayden_core::{EventCtx, EventKind, Module, OverlapError, RegistryBuilder};
 
-use crate::{Components, KickComponent, TagsComponent, tasks};
+use crate::modals::Create;
+use crate::{Components, KickComponent, TagsComponent, events, tasks};
 
 // region: Components
 
@@ -197,7 +198,7 @@ impl ModuleModal for LfgCreateModal {
     }
 
     async fn run(&self, cx: &ModalCtx<'_>) -> Result<(), HandlerError> {
-        crate::modals::Create::run(cx.ctx, cx.interaction, &cx.app.db, cx.me).await?;
+        Create::run(cx.ctx, cx.interaction, &cx.app.db, cx.me).await?;
         Ok(())
     }
 }
@@ -259,11 +260,10 @@ impl Module for LfgModule {
     ) -> Result<(), HandlerError> {
         match ev {
             FullEvent::GuildCreate { guild, .. } => {
-                crate::events::guild_create(cx.ctx, guild, &cx.app.db, cx.me).await?;
+                events::guild_create(cx.ctx, guild, &cx.app.db, cx.me).await?;
             },
             FullEvent::ThreadDelete { thread, .. } => {
-                crate::events::thread_delete(&cx.ctx.http, thread, &cx.app.db)
-                    .await?;
+                events::thread_delete(&cx.ctx.http, thread, &cx.app.db).await?;
             },
             _ => {},
         }
@@ -279,8 +279,6 @@ impl Module for LfgModule {
         cx: &TaskCtx<'_>,
         task: &Task,
     ) -> Result<(), HandlerError> {
-        tasks::run(&cx.ctx.http, &cx.app.db, task)
-            .await
-            .map_err(HandlerError::new)
+        tasks::run(&cx.ctx.http, &cx.app.db, task).await.map_err(HandlerError::new)
     }
 }

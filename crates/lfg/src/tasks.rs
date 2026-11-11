@@ -73,6 +73,15 @@ pub async fn schedule(
     .await
 }
 
+pub async fn ensure(pool: &PgPool, me: Identity, row: &PostRow) -> sqlx::Result<()> {
+    ScheduledTasks::ensure(
+        pool,
+        me.application_i64(),
+        &reminders(row, Timestamp::now()),
+    )
+    .await
+}
+
 pub async fn run(
     http: &Http,
     pool: &PgPool,

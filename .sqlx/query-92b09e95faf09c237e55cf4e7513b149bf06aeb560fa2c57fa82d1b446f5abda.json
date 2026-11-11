@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE scheduled_tasks SET run_at = now() - interval '1 minute' WHERE application_id = 1 AND key = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "92b09e95faf09c237e55cf4e7513b149bf06aeb560fa2c57fa82d1b446f5abda"
+}

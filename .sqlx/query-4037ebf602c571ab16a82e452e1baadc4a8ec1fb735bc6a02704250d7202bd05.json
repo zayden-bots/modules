@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT key, run_at AS \"run_at: jiff_sqlx::Timestamp\" FROM scheduled_tasks WHERE application_id = 1 ORDER BY run_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scheduled_tasks",
+            "name": "key"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "run_at: jiff_sqlx::Timestamp",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "scheduled_tasks",
+            "name": "run_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "4037ebf602c571ab16a82e452e1baadc4a8ec1fb735bc6a02704250d7202bd05"
+}

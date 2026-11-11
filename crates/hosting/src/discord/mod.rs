@@ -9,14 +9,7 @@ use secrecy::ExposeSecret;
 use slash_commands::Server;
 use zayden_app::entitlement::EntitlementService;
 use zayden_core::error::HandlerError;
-use zayden_core::{
-    CronResult,
-    Identity,
-    Module,
-    ModuleCtx,
-    OverlapError,
-    RegistryBuilder,
-};
+use zayden_core::{CronResult, Module, ModuleCtx, OverlapError, RegistryBuilder};
 
 use crate::cron::{HostingDeleteCron, HostingExpireCron, HostingReminderCron};
 use crate::{HostingError, HostingRuntime};
@@ -84,17 +77,12 @@ impl Module for HostingModule {
         Ok(())
     }
 
-    fn entity_jobs(&self, me: Identity) -> Vec<CronResult> {
-        self.runtime.0.as_ref().map_or_else(Vec::new, |runtime| {
-            vec![HostingReminderCron::cron_job(Arc::clone(runtime), me)]
-        })
-    }
-
     fn worker_jobs(&self) -> Vec<CronResult> {
         // Hosting is optional; without a catalog and panel credentials there
         // are no servers for these sweeps to act on.
         self.runtime.0.as_ref().map_or_else(Vec::new, |runtime| {
             vec![
+                HostingReminderCron::cron_job(Arc::clone(runtime)),
                 HostingExpireCron::cron_job(
                     Arc::clone(runtime),
                     Arc::clone(&self.entitlements),

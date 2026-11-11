@@ -4,10 +4,27 @@
 //! support team has not answered is never closed for the team's silence. Only
 //! the poster going quiet after being asked ends a thread.
 
+use serenity::all::ApplicationId;
 use sqlx::PgPool;
 use ticket::idle::ThreadActivity;
 use ticket::idle::close::claim_due;
 use ticket::{ChannelId, ForumTagId, RoleId, ThreadId, UserId};
+use zayden_app::applications::{AppKind, Slot};
+use zayden_core::Identity;
+
+const ME: Identity = Identity {
+    application_id: ApplicationId::new(1),
+    user_id: UserId::new(2),
+    slot: Slot::Zayden,
+    kind: AppKind::Default,
+};
+
+const CUSTOM: Identity = Identity {
+    application_id: ApplicationId::new(2),
+    user_id: UserId::new(3),
+    slot: Slot::Zayden,
+    kind: AppKind::Custom,
+};
 
 const OP: UserId = UserId::new(1000);
 const HELPER: UserId = UserId::new(2000);
@@ -22,7 +39,7 @@ const fn thread(id: u64) -> ThreadId {
     reason = "a free helper sits outside the #[test] items clippy.toml exempts"
 )]
 async fn claimed(pool: &PgPool) -> Vec<i64> {
-    let mut ids = claim_due(pool, 40)
+    let mut ids = claim_due(pool, 40, ME)
         .await
         .expect("close sweep")
         .into_iter()
@@ -106,7 +123,7 @@ async fn an_already_closed_thread_is_left_alone(pool: PgPool) {
 /// load them per thread.
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("support_idle_close"))]
 async fn the_sweep_reports_the_forum_settings(pool: PgPool) {
-    let due = claim_due(&pool, 40).await.expect("close sweep");
+    let due = claim_due(&pool, 40, ME).await.expect("close sweep");
     let row = due.iter().find(|r| r.thread_id == 10).expect("thread 10");
 
     assert_eq!(row.op(), OP);
@@ -116,5 +133,36 @@ async fn the_sweep_reports_the_forum_settings(pool: PgPool) {
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("support_idle_close"))]
 async fn the_batch_limit_is_respected(pool: PgPool) {
-    assert_eq!(claim_due(&pool, 1).await.expect("close sweep").len(), 1);
+    assert_eq!(claim_due(&pool, 1, ME).await.expect("close sweep").len(), 1);
+}
+
+#[sqlx::test(migrator = "schema::MIGRATOR", fixtures("support_idle_close"))]
+async fn claim_due_skips_rows_authored_by_another_application(pool: PgPool) {
+    sqlx::query!("UPDATE support_thread_activity SET application_id = 99")
+        .execute(&pool)
+        .await
+        .expect("author rows");
+
+    assert!(claim_due(&pool, 40, ME).await.expect("close sweep").is_empty());
+
+    let other = Identity { application_id: ApplicationId::new(99), ..CUSTOM };
+    let mut ids = claim_due(&pool, 40, other)
+        .await
+        .expect("close sweep")
+        .into_iter()
+        .map(|row| row.thread_id)
+        .collect::<Vec<_>>();
+    ids.sort_unstable();
+    assert_eq!(ids, vec![10, 11]);
+}
+
+#[sqlx::test(migrator = "schema::MIGRATOR", fixtures("support_idle_close"))]
+async fn claim_due_takes_unauthored_rows_only_when_primary(pool: PgPool) {
+    sqlx::query!("UPDATE support_thread_activity SET application_id = NULL")
+        .execute(&pool)
+        .await
+        .expect("clear authors");
+
+    assert!(claim_due(&pool, 40, CUSTOM).await.expect("close sweep").is_empty());
+    assert_eq!(claim_due(&pool, 40, ME).await.expect("close sweep").len(), 2);
 }

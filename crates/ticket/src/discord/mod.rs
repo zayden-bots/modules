@@ -133,7 +133,7 @@ impl Module for TicketModule {
                             cx.me,
                         )
                         .await
-                            .map_err(HandlerError::from)
+                        .map_err(HandlerError::from)
                     },
                     async {
                         crate::idle::events::message(msg, &cx.app)

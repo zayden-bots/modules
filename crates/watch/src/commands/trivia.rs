@@ -72,6 +72,7 @@ pub async fn run<S: BuildHasher>(
         answer: &question.answer,
         choices: Some(choices),
         reveal_image_url: None,
+        application_id: cx.me.application_i64(),
     }
     .open(&cx.app.db)
     .await?;

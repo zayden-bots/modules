@@ -3,7 +3,7 @@ use jiff::Timestamp;
 use jiff_sqlx::Timestamp as SqlxTimestamp;
 use serenity::all::{GenericChannelId, GuildId, MessageId, UserId};
 use sqlx::PgPool;
-use zayden_core::as_i64;
+use zayden_core::{Identity, as_i64};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PartyState {
@@ -94,14 +94,15 @@ impl PartyRow {
         starts_at: Timestamp,
         ends_at: Timestamp,
         cleanup_after: Timestamp,
+        application_id: i64,
     ) -> sqlx::Result<i64> {
         sqlx::query_scalar!(
             r#"
             INSERT INTO jellyfin_parties
                 (guild_id, channel_id, host_id, item_id, item_name, item_type,
                  item_parent_path, guests_enabled, starts_at, ends_at,
-                 cleanup_after)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                 cleanup_after, application_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING id
             "#,
             as_i64(guild_id.get()),
@@ -115,8 +116,24 @@ impl PartyRow {
             SqlxTimestamp::from(starts_at) as SqlxTimestamp,
             SqlxTimestamp::from(ends_at) as SqlxTimestamp,
             SqlxTimestamp::from(cleanup_after) as SqlxTimestamp,
+            application_id,
         )
         .fetch_one(pool)
+        .await
+    }
+
+    pub async fn owned_ids(
+        pool: &PgPool,
+        guild_id: i64,
+        me: Identity,
+    ) -> sqlx::Result<Vec<i64>> {
+        sqlx::query_scalar!(
+            "SELECT id FROM jellyfin_parties WHERE guild_id = $1 AND (application_id = $2 OR (application_id IS NULL AND $3))",
+            guild_id,
+            me.application_i64(),
+            me.is_primary()
+        )
+        .fetch_all(pool)
         .await
     }
 

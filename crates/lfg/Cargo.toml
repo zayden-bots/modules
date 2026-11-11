@@ -22,7 +22,6 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["std"] }
 serenity = { workspace = true }
 sqlx = { workspace = true }
-tokio = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]

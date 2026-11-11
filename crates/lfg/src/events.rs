@@ -14,9 +14,8 @@ use tracing::{debug, error};
 use zayden_core::Identity;
 
 use crate::modals::create::GuildRow;
-use crate::tasks;
 use crate::templates::TemplateInfo;
-use crate::{LfgError, PostRow, Result, actions};
+use crate::{LfgError, PostRow, Result, actions, tasks};
 
 pub async fn thread_delete(
     http: &Http,
@@ -105,10 +104,13 @@ pub async fn guild_create(
 
         let start_time = post.start_time.to_jiff().to_zoned(TimeZone::UTC);
 
-        if start_time > now && thread.owner_id == Some(me.user_id) {
-            if let Err(e) = tasks::schedule(pool, me, &post).await {
-                error!(error = ?e, post_id = %post.thread(), "lfg: scheduling reminders failed");
-            }
+        let own_thread = me.user_id == thread.owner_id;
+
+        if own_thread
+            && start_time > now
+            && let Err(e) = tasks::ensure(pool, me, &post).await
+        {
+            error!(error = ?e, post_id = %post.thread(), "lfg: scheduling reminders failed");
         }
 
         if start_time < now

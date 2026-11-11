@@ -4,10 +4,20 @@
 //! a ticket nobody on the support team has answered is the team's backlog, not
 //! an abandoned post, and it never goes stale for the team's silence.
 
+use serenity::all::ApplicationId;
 use sqlx::PgPool;
 use ticket::idle::ThreadActivity;
 use ticket::idle::stale::{claim_cleared, claim_due};
 use ticket::{ChannelId, ForumTagId, RoleId, ThreadId, UserId};
+use zayden_app::applications::{AppKind, Slot};
+use zayden_core::Identity;
+
+const ME: Identity = Identity {
+    application_id: ApplicationId::new(1),
+    user_id: UserId::new(2),
+    slot: Slot::Zayden,
+    kind: AppKind::Default,
+};
 
 const OP: UserId = UserId::new(1000);
 const HELPER: UserId = UserId::new(2000);
@@ -22,7 +32,7 @@ const fn thread(id: u64) -> ThreadId {
     reason = "a free helper sits outside the #[test] items clippy.toml exempts"
 )]
 async fn claimed(pool: &PgPool) -> Vec<i64> {
-    let mut ids = claim_due(pool, 40)
+    let mut ids = claim_due(pool, 40, ME)
         .await
         .expect("stale sweep")
         .into_iter()
@@ -37,7 +47,7 @@ async fn claimed(pool: &PgPool) -> Vec<i64> {
     reason = "a free helper sits outside the #[test] items clippy.toml exempts"
 )]
 async fn cleared(pool: &PgPool) -> Vec<i64> {
-    let mut ids = claim_cleared(pool, 40)
+    let mut ids = claim_cleared(pool, 40, ME)
         .await
         .expect("stale clear sweep")
         .into_iter()
@@ -91,7 +101,7 @@ async fn a_guild_needs_the_feature_on_and_a_tag_to_apply(pool: PgPool) {
 /// load them per thread.
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("support_stale"))]
 async fn the_sweep_reports_the_forum_settings(pool: PgPool) {
-    let due = claim_due(&pool, 40).await.expect("stale sweep");
+    let due = claim_due(&pool, 40, ME).await.expect("stale sweep");
     let row = due.iter().find(|r| r.thread_id == 10).expect("thread 10");
 
     assert_eq!(row.support_channel(), Some(ChannelId::new(500)));
@@ -100,7 +110,7 @@ async fn the_sweep_reports_the_forum_settings(pool: PgPool) {
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("support_stale"))]
 async fn the_batch_limit_is_respected(pool: PgPool) {
-    assert_eq!(claim_due(&pool, 1).await.expect("stale sweep").len(), 1);
+    assert_eq!(claim_due(&pool, 1, ME).await.expect("stale sweep").len(), 1);
 }
 
 /// Thread 17 was tagged and then posted in, which is the whole trigger for
@@ -129,7 +139,7 @@ async fn clearing_happens_once(pool: PgPool) {
 /// thread that needs untagging; the reply only moves `since` past it.
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("support_stale"))]
 async fn a_tracked_reply_queues_the_tag_for_removal(pool: PgPool) {
-    claim_due(&pool, 40).await.expect("stale sweep");
+    claim_due(&pool, 40, ME).await.expect("stale sweep");
 
     ThreadActivity::track(&pool, thread(10), OP, &[], false).await.expect("track");
 
@@ -138,7 +148,7 @@ async fn a_tracked_reply_queues_the_tag_for_removal(pool: PgPool) {
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("support_stale"))]
 async fn a_helper_reply_also_queues_the_tag_for_removal(pool: PgPool) {
-    claim_due(&pool, 40).await.expect("stale sweep");
+    claim_due(&pool, 40, ME).await.expect("stale sweep");
 
     ThreadActivity::track(&pool, thread(11), HELPER, &[SUPPORT], false)
         .await

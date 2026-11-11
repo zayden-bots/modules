@@ -1,10 +1,10 @@
 use std::borrow::Cow;
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use jellyfin::RuntimeHandle;
-use jellyfin::runtime::JellyfinRuntime;
 use serenity::all::CreateCommand;
+use sqlx::PgPool;
+use zayden_core::Identity;
 use zayden_core::ctx::{AutocompleteCtx, InvocationCtx};
 use zayden_core::error::HandlerError;
 use zayden_core::module::{ModuleAutocomplete, ModuleCommand};
@@ -15,20 +15,18 @@ async fn dispatch(
 ) -> Result<(), HandlerError> {
     let runtime = runtime.get()?;
 
-    // The module cannot name `BotState`, so it hands back the cron work it
-    // wants registered and this layer applies it.
     let scheduled = crate::Watch::run(cx, &runtime).await?;
-    apply(cx.ctx, &runtime, scheduled).await;
+    apply(&cx.app.db, cx.me, scheduled).await;
 
     Ok(())
 }
 
 pub(super) async fn apply(
-    ctx: &serenity::all::Context,
-    runtime: &Arc<JellyfinRuntime>,
+    pool: &PgPool,
+    me: Identity,
     scheduled: crate::party::Scheduled,
 ) {
-    scheduled.apply(ctx, runtime).await;
+    scheduled.apply(pool, me).await;
 }
 
 pub(super) struct Watch {

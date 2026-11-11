@@ -1,15 +1,14 @@
-pub mod cron;
 pub mod deeplink;
 pub mod lifecycle;
 pub mod reaper;
 pub mod row;
+pub mod tasks;
 
-use std::sync::Arc;
-
-use jellyfin::runtime::JellyfinRuntime;
 pub use reaper::JellyfinPartyReaperCron;
 pub use row::{PartyGuestRow, PartyRow, PartyState};
-use serenity::all::Context;
+use sqlx::PgPool;
+use tracing::error;
+use zayden_core::Identity;
 
 #[derive(Debug, Default)]
 pub enum Scheduled {
@@ -20,13 +19,19 @@ pub enum Scheduled {
 }
 
 impl Scheduled {
-    pub async fn apply(self, ctx: &Context, runtime: &Arc<JellyfinRuntime>) {
+    pub async fn apply(self, pool: &PgPool, me: Identity) {
         match self {
             Self::Nothing => {},
             Self::Party(party) => {
-                cron::create_jobs(ctx, runtime, &party).await;
+                if let Err(e) = tasks::schedule(pool, me, &party).await {
+                    error!(error = ?e, party_id = party.id, "could not schedule party tasks");
+                }
             },
-            Self::Clear(party_id) => cron::clear_jobs(ctx, party_id).await,
+            Self::Clear(party_id) => {
+                if let Err(e) = tasks::clear(pool, me, party_id).await {
+                    error!(error = ?e, party_id, "could not clear party tasks");
+                }
+            },
         }
     }
 }

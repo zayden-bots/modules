@@ -5,10 +5,20 @@
 //! own silence, and a bystander wandering through a public forum post must not
 //! reset the clock on somebody else's conversation.
 
+use serenity::all::ApplicationId;
 use sqlx::PgPool;
 use ticket::idle::sweep::claim_due;
 use ticket::idle::{Ball, ThreadActivity};
 use ticket::{GuildId, RoleId, ThreadId, UserId};
+use zayden_app::applications::{AppKind, Slot};
+use zayden_core::Identity;
+
+const ME: Identity = Identity {
+    application_id: ApplicationId::new(1),
+    user_id: UserId::new(2),
+    slot: Slot::Zayden,
+    kind: AppKind::Default,
+};
 
 const GUILD: GuildId = GuildId::new(1);
 const OP: UserId = UserId::new(1000);
@@ -28,7 +38,7 @@ const fn thread(id: u64) -> ThreadId {
     reason = "a free helper sits outside the #[test] items clippy.toml exempts"
 )]
 async fn claimed(pool: &PgPool) -> Vec<i64> {
-    let mut ids = claim_due(pool, 40)
+    let mut ids = claim_due(pool, 40, ME)
         .await
         .expect("sweep")
         .into_iter()
@@ -53,7 +63,7 @@ async fn a_claimed_thread_is_not_claimed_twice(pool: PgPool) {
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("support_idle"))]
 async fn the_sweep_reports_the_ball_and_the_roles(pool: PgPool) {
-    let due = claim_due(&pool, 40).await.expect("sweep");
+    let due = claim_due(&pool, 40, ME).await.expect("sweep");
 
     let unanswered = due.iter().find(|r| r.thread_id == 10).expect("thread 10");
     assert_eq!(unanswered.ball(), Ball::Helper);
@@ -236,8 +246,8 @@ async fn pausing_and_resuming_survives_the_helper(pool: PgPool) {
 
 #[sqlx::test(migrator = "schema::MIGRATOR", fixtures("support_idle"))]
 async fn insert_is_idempotent_and_delete_is_final(pool: PgPool) {
-    ThreadActivity::insert(&pool, GUILD, thread(30), OP).await.expect("insert");
-    ThreadActivity::insert(&pool, GUILD, thread(30), BYSTANDER)
+    ThreadActivity::insert(&pool, GUILD, thread(30), OP, 1).await.expect("insert");
+    ThreadActivity::insert(&pool, GUILD, thread(30), BYSTANDER, 1)
         .await
         .expect("insert again");
 

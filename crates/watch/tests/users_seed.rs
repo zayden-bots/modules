@@ -84,6 +84,7 @@ const fn round_started_by(
         answer: "Arrival",
         choices: None,
         reveal_image_url: None,
+        application_id: 1,
     }
 }
 
@@ -199,6 +200,7 @@ async fn joins_a_party_for_a_guest_who_has_no_users_row_yet(pool: PgPool) {
         starts_at,
         ends_at,
         ends_at + Span::new().hours(1),
+        1,
     )
     .await
     .expect("creating the party failed");
