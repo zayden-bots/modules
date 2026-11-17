@@ -76,6 +76,6 @@ fn a_long_question_is_cut_at_a_word() {
 fn value(choice: Option<&AutocompleteChoice<'_>>) -> Option<String> {
     match choice?.value {
         AutocompleteValue::String(ref value) => Some(value.to_string()),
-        AutocompleteValue::Integer(_) | AutocompleteValue::Float(_) | _ => None,
+        AutocompleteValue::Integer(_) | AutocompleteValue::Float(_) => None,
     }
 }

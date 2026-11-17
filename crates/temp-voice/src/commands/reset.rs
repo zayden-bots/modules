@@ -5,6 +5,8 @@ use serenity::all::{
     EditInteractionResponse,
     GuildId,
     Http,
+    HttpError,
+    JsonErrorCode,
     PermissionOverwriteType,
 };
 use serenity::nonmax::NonMaxU16;
@@ -30,11 +32,14 @@ pub(super) async fn reset(
     row.reset();
     row.save(pool).await?;
 
-    let channel = guild_id
-        .channels(http)
-        .await?
-        .remove(&channel_id)
-        .ok_or(TempVoiceError::ChannelNotFound(channel_id))?;
+    let channel = match channel_id.to_guild_channel(http, Some(guild_id)).await {
+        Err(serenity::Error::Http(HttpError::UnsuccessfulRequest(resp)))
+            if resp.error.code == JsonErrorCode::UnknownChannel =>
+        {
+            return Err(TempVoiceError::ChannelNotFound(channel_id));
+        },
+        r => r?,
+    };
 
     let everyone_permissions = channel
         .permission_overwrites

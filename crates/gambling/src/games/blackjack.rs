@@ -364,9 +364,9 @@ fn section_text(section: &Section) -> String {
     section
         .components
         .iter()
-        .map(|component| match component {
-            SectionComponent::TextDisplay(text) => text.content.as_str(),
-            _ => "",
+        .map(|component| {
+            let SectionComponent::TextDisplay(text) = component;
+            text.content.as_str()
         })
         .collect::<Vec<_>>()
         .join("\n")

@@ -31,8 +31,9 @@ impl Suggestions {
                 | LabelComponent::FileUpload(_)
                 | LabelComponent::RadioGroup(_)
                 | LabelComponent::CheckboxGroup(_)
-                | LabelComponent::Checkbox(_)
-                | _ => return Err(SuggestionsError::InvalidModalStructure),
+                | LabelComponent::Checkbox(_) => {
+                    return Err(SuggestionsError::InvalidModalStructure);
+                },
             },
             _ => return Err(SuggestionsError::InvalidModalStructure),
         };

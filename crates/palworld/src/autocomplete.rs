@@ -33,8 +33,7 @@ pub async fn run(cx: &AutocompleteCtx<'_>, client: &PalworldClient) -> Result<()
         | ResolvedValue::Channel(_)
         | ResolvedValue::Role(_)
         | ResolvedValue::User(..)
-        | ResolvedValue::Unresolved(_)
-        | _ => None,
+        | ResolvedValue::Unresolved(_) => None,
     });
     let (focused_name, query) = focused.unwrap_or_default();
     let query_lower = query.to_lowercase();

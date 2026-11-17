@@ -67,8 +67,7 @@ pub async fn run(cx: &AutocompleteCtx<'_>, api: &DeadlockApi) -> Result<()> {
         | ResolvedValue::Channel(_)
         | ResolvedValue::Role(_)
         | ResolvedValue::User(..)
-        | ResolvedValue::Unresolved(_)
-        | _ => None,
+        | ResolvedValue::Unresolved(_) => None,
     });
 
     let choices: Vec<AutocompleteChoice<'static>> = match focused {

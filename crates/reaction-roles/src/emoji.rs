@@ -1,6 +1,6 @@
 use serenity::all::ReactionType;
 
-use crate::{ReactionRoleError, Result};
+use crate::Result;
 
 pub struct ParsedEmoji {
     pub stored: String,
@@ -22,7 +22,6 @@ impl ParsedEmoji {
             ReactionType::Unicode(unicode) => {
                 Ok(Self { stored, custom_id: None, name: unicode.to_string() })
             },
-            _ => Err(ReactionRoleError::UnsupportedEmoji(stored)),
         }
     }
 }
