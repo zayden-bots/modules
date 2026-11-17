@@ -141,7 +141,7 @@ fn next_month(current: Option<Timestamp>) -> Timestamp {
     let now = Timestamp::now();
     let from = current.map_or(now, |t| if t > now { t } else { now });
 
-    from.to_zoned(TimeZone::UTC)
+    from.to_zoned_datetime(TimeZone::UTC)
         .checked_add(1.month())
         .map_or(from, |z| z.timestamp())
 }

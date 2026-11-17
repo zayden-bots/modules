@@ -3,7 +3,7 @@ pub use create::Create;
 
 pub mod edit;
 pub use edit::Edit;
-use jiff::Zoned;
+use jiff::ZonedDateTime;
 use jiff::tz::TimeZone;
 use serenity::all::{
     CreateInputText,
@@ -17,7 +17,7 @@ use crate::{LfgError, Result};
 #[must_use]
 pub fn modal_components<'a>(
     activity: &'a str,
-    start_time: &Zoned,
+    start_time: &ZonedDateTime,
     fireteam_size: i16,
     description: Option<&'a str>,
 ) -> Vec<CreateModalComponent<'a>> {
@@ -53,12 +53,12 @@ pub fn modal_components<'a>(
     ]
 }
 
-fn start_time(timezone: TimeZone, start_time_str: &str) -> Result<Zoned> {
+fn start_time(timezone: TimeZone, start_time_str: &str) -> Result<ZonedDateTime> {
     let naive_dt = jiff::fmt::strtime::parse("%Y-%m-%d %H:%M", start_time_str)
         .and_then(|bdt| bdt.to_datetime())
         .map_err(|_e| LfgError::InvalidDateTime("YYYY-MM-DD HH:MM".to_string()))?;
 
-    let st = naive_dt.to_zoned(timezone).map_err(|_e| {
+    let st = naive_dt.to_zoned_datetime(timezone).map_err(|_e| {
         LfgError::InvalidDateTime("Date invalid in this timezone".to_string())
     })?;
 

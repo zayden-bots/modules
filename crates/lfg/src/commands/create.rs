@@ -32,7 +32,7 @@ impl Command {
         let timezone =
             UserTimezone::get(pool, interaction.user.id, &interaction.locale)
                 .await?;
-        let now = Timestamp::now().to_zoned(timezone);
+        let now = Timestamp::now().to_zoned_datetime(timezone);
 
         let fireteam_size = ACTIVITIES
             .iter()

@@ -156,7 +156,7 @@ async fn parse_when(
         .map_err(|_e: jiff::Error| JellyfinError::BadTime(raw.to_owned()))?;
 
     civil
-        .to_zoned(tz)
+        .to_zoned_datetime(tz)
         .map(|zoned| zoned.timestamp())
         .map_err(|_e| JellyfinError::BadTime(raw.to_owned()).into())
 }

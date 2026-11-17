@@ -3,7 +3,7 @@ use std::hash::BuildHasher;
 use std::sync::Arc;
 
 use jellyfin::runtime::JellyfinRuntime;
-use jiff::{Span, Zoned};
+use jiff::{Span, ZonedDateTime};
 use serenity::all::{CreateEmbed, EditInteractionResponse, ResolvedValue};
 use zayden_core::{InvocationCtx, optional_option, required_option};
 
@@ -32,7 +32,8 @@ pub async fn run<S: BuildHasher>(
     let plan = binge::plan(runtime, &series.item_id, skip_intros).await?;
 
     let days = plan.days_at(usize::try_from(per_day).unwrap_or(1));
-    let finish = Zoned::now() + Span::new().days(i64::try_from(days).unwrap_or(0));
+    let finish =
+        ZonedDateTime::now() + Span::new().days(i64::try_from(days).unwrap_or(0));
 
     let mut embed = CreateEmbed::new()
         .title(format!("Binge plan: {}", series.name))

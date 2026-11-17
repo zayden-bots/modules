@@ -1,4 +1,3 @@
-use jiff::tz::TimeZone;
 use serenity::all::{
     CommandInteraction,
     Context,
@@ -8,7 +7,7 @@ use serenity::all::{
 };
 use sqlx::PgPool;
 use tokio::sync::RwLock;
-use zayden_core::{FormatNum, RuntimeState};
+use zayden_core::{FormatNum, RuntimeState, Scheduled};
 
 use crate::shop::LOTTO_TICKET;
 use crate::{
@@ -52,11 +51,8 @@ impl Commands {
                         "lotto cron schedule invalid: {e}"
                     ))
                 })?
-                .schedule
-                .upcoming(TimeZone::UTC)
-                .next()
+                .next_run(jiff::Timestamp::now())
                 .unwrap_or_default()
-                .timestamp()
                 .as_second()
         };
 

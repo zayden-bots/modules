@@ -83,7 +83,7 @@ fn parses_runner_from_mobalytics_fixture() {
             .contains("smoke disc")
     );
 
-    assert!(runner.cores.contains(&"Breathing Space".to_string()));
+    assert!(runner.cores.iter().any(|c| c == "Breathing Space"));
 }
 
 #[test]

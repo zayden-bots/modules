@@ -3,7 +3,7 @@ mod slash_command;
 use std::borrow::Cow;
 
 use async_trait::async_trait;
-use serenity::all::FullEvent;
+use serenity::all::{FullEvent, GuildCreateGuild};
 use slash_command::Lfg;
 use zayden_app::tasks::Task;
 use zayden_core::ctx::{ComponentCtx, ModalCtx, TaskCtx};
@@ -259,7 +259,9 @@ impl Module for LfgModule {
         ev: &FullEvent,
     ) -> Result<(), HandlerError> {
         match ev {
-            FullEvent::GuildCreate { guild, .. } => {
+            FullEvent::GuildCreate {
+                guild: GuildCreateGuild::Available(guild), ..
+            } => {
                 events::guild_create(cx.ctx, guild, &cx.app.db, cx.me).await?;
             },
             FullEvent::ThreadDelete { thread, .. } => {

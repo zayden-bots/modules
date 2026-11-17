@@ -151,12 +151,12 @@ pub async fn bot_id(http: &Http) -> Result<UserId> {
 pub fn tomorrow(now: Option<Timestamp>) -> Result<i64> {
     let ts = now
         .unwrap_or_else(Timestamp::now)
-        .to_zoned(TimeZone::UTC)
+        .to_zoned_datetime(TimeZone::UTC)
         .date()
         .tomorrow()
         .map_err(|e| GamblingError::Internal(format!("date overflow: {e}")))?
         .at(0, 0, 0, 0)
-        .to_zoned(TimeZone::UTC)
+        .to_zoned_datetime(TimeZone::UTC)
         .map_err(|e| {
             GamblingError::Internal(format!("timezone mapping failed: {e}"))
         })?

@@ -11,7 +11,7 @@ use serenity::all::{
 };
 use sqlx::PgPool;
 use tracing::{debug, error};
-use zayden_core::Identity;
+use zayden_core::{Identity, serenity_to_jiff};
 
 use crate::modals::create::GuildRow;
 use crate::templates::TemplateInfo;
@@ -69,7 +69,7 @@ pub async fn guild_create(
         .chain(archived_threads.threads.iter())
         .cloned();
 
-    let now = Timestamp::now().to_zoned(TimeZone::UTC);
+    let now = Timestamp::now().to_zoned_datetime(TimeZone::UTC);
     let week_ago = &now - Span::new().days(7);
     let month_ago = &now - Span::new().days(30);
 
@@ -77,7 +77,9 @@ pub async fn guild_create(
         let Some(last_message_id) = thread.base.last_message_id else {
             continue;
         };
-        let created_at = last_message_id.created_at().to_zoned(TimeZone::UTC);
+        let created_at = serenity_to_jiff(&last_message_id.created_at())
+            .map_err(|e| LfgError::Internal(e.to_string()))?
+            .to_zoned_datetime(TimeZone::UTC);
 
         if created_at < month_ago {
             match thread.delete(&ctx.http, Some("Thread older than 30 days")).await {
@@ -102,7 +104,7 @@ pub async fn guild_create(
             continue;
         };
 
-        let start_time = post.start_time.to_jiff().to_zoned(TimeZone::UTC);
+        let start_time = post.start_time.to_jiff().to_zoned_datetime(TimeZone::UTC);
 
         let own_thread = me.user_id == thread.owner_id;
 

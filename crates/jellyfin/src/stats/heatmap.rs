@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::fmt::Write as _;
 
 use jiff::civil::Date;
-use jiff::{Span, Zoned};
+use jiff::{Span, ZonedDateTime};
 use zayden_graphics::{Canvas, RasterLimits, Renderer};
 
 const WEEKS: i64 = 53;
@@ -24,7 +24,7 @@ pub fn canvas() -> Canvas {
 
 #[must_use]
 pub fn svg(days: &[Date], title: &str) -> String {
-    let today = Zoned::now().date();
+    let today = ZonedDateTime::now().date();
     let watched: HashSet<Date> = days.iter().copied().collect();
 
     // Start on the Sunday at or before the first day of the window, so every

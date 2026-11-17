@@ -16,7 +16,7 @@ zayden-core = { workspace = true }
 async-trait = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
-jiff = { workspace = true, features = ["std"] }
+jiff = { workspace = true, features = ["std", "tz-system", "tz-fat", "tzdb-bundle-platform", "tzdb-zoneinfo"] }
 jiff-cron = { workspace = true }
 moka = { workspace = true, features = ["future"] }
 regex = { workspace = true, features = ["std"] }

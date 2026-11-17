@@ -17,7 +17,7 @@ levels = { workspace = true }
 async-trait = { workspace = true }
 bigdecimal = { workspace = true }
 dashmap = { workspace = true }
-jiff = { workspace = true }
+jiff = { workspace = true, features = ["std"] }
 jiff-cron = { workspace = true }
 jiff-sqlx = { workspace = true }
 futures = { workspace = true }

@@ -1,4 +1,4 @@
-use jiff::Zoned;
+use jiff::ZonedDateTime;
 use jiff::civil::Weekday;
 
 use crate::model::RotationWindow;
@@ -15,7 +15,9 @@ pub const DUO_MAP_POOL: [&str; 4] =
 
 #[must_use]
 pub fn current_windows() -> (RotationWindow, RotationWindow) {
-    let now_pt = Zoned::now().in_tz(PT_TZ).unwrap_or_else(|_| Zoned::now());
+    let now_pt = ZonedDateTime::now()
+        .in_tz(PT_TZ)
+        .unwrap_or_else(|_| ZonedDateTime::now());
     let now_minutes =
         minutes_of_week(now_pt.weekday(), now_pt.hour(), now_pt.minute());
 

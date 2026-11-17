@@ -1,5 +1,5 @@
 use jiff::civil::Date;
-use jiff::{Span, Zoned};
+use jiff::{Span, ZonedDateTime};
 use sqlx::PgPool;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -31,7 +31,7 @@ pub async fn load(pool: &PgPool, jellyfin_user_id: &str) -> sqlx::Result<Streak>
 }
 
 fn today() -> Date {
-    Zoned::now().date()
+    ZonedDateTime::now().date()
 }
 
 #[must_use]

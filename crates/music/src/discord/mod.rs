@@ -6,7 +6,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use command::Music;
 use components::{ControlPanel, QueuePager};
-use serenity::all::FullEvent;
+use serenity::all::{FullEvent, GuildCreateGuild};
 use songbird::Songbird;
 use zayden_core::error::HandlerError;
 use zayden_core::{
@@ -76,7 +76,8 @@ impl Module for MusicModule {
     ) -> Result<(), HandlerError> {
         if let FullEvent::VoiceStateUpdate { new, .. } = ev {
             self.music.occupancy().update(new);
-        } else if let FullEvent::GuildCreate { guild, .. } = ev {
+        } else if let FullEvent::GuildCreate { guild: GuildCreateGuild::Available(guild), .. } = ev
+        {
             self.music.occupancy().guild_create(guild);
         }
         Ok(())

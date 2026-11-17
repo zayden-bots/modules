@@ -20,7 +20,7 @@ fn post(start: Timestamp) -> PostRow {
     PostBuilder::new(
         UserId::new(3),
         "Vault of Glass",
-        start.to_zoned(TimeZone::UTC),
+        start.to_zoned_datetime(TimeZone::UTC),
         "Fresh run",
         6,
     )

@@ -10,7 +10,6 @@ use serenity::all::{
     EditInteractionResponse,
     GuildId,
     Permissions,
-    Timestamp,
     User,
     UserId,
 };
@@ -20,6 +19,7 @@ use zayden_core::{
     HandlerError,
     InvocationCtx,
     ModuleCommand,
+    jiff_to_serenity,
     optional_option,
     parse_options,
     required_option,
@@ -167,8 +167,8 @@ async fn mute(
 
     let until = jiff::Timestamp::now()
         .checked_add(duration)
-        .map(Timestamp::from)
         .map_err(|e| CoreError::Other(e.to_string()))?;
+    let until = jiff_to_serenity(until).map_err(|e| CoreError::Other(e.to_string()))?;
     member.disable_communication_until(&case.ctx.http, until).await?;
 
     case.record(InfractionKind::Mute).await?;

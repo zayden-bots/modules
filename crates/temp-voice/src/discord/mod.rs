@@ -27,7 +27,7 @@ use components::{
     VoiceTrust,
     VoiceTrustMenu,
 };
-use serenity::all::FullEvent;
+use serenity::all::{FullEvent, GuildCreateGuild};
 use zayden_core::error::HandlerError;
 use zayden_core::{EventCtx, EventKind, Module, OverlapError, RegistryBuilder};
 
@@ -95,7 +95,9 @@ impl Module for TempVoiceModule {
         ev: &FullEvent,
     ) -> Result<(), HandlerError> {
         if let FullEvent::GuildCreate { guild, .. } = ev {
-            self.voice_states.guild_create(guild);
+            if let GuildCreateGuild::Available(guild) = guild {
+                self.voice_states.guild_create(guild);
+            }
             return Ok(());
         }
 

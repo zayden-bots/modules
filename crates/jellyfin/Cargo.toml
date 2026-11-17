@@ -18,7 +18,7 @@ zayden-graphics = { workspace = true }
 async-trait = { workspace = true }
 futures = { workspace = true, features = ["std", "async-await"] }
 image = { workspace = true }
-jiff = { workspace = true }
+jiff = { workspace = true, features = ["std", "tz-system", "tz-fat", "tzdb-bundle-platform", "tzdb-zoneinfo"] }
 jiff-sqlx = { workspace = true }
 moka = { workspace = true, features = ["future"] }
 quick-xml = { workspace = true }

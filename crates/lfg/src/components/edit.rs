@@ -1,4 +1,4 @@
-use jiff::Zoned;
+use jiff::ZonedDateTime;
 use jiff::tz::{self, TimeZone};
 use jiff_sqlx::Timestamp;
 use serenity::all::{
@@ -34,14 +34,14 @@ impl EditRow {
     }
 
     #[must_use]
-    pub fn start_time(&self) -> Zoned {
+    pub fn start_time(&self) -> ZonedDateTime {
         let tz = self
             .timezone
             .as_deref()
             .and_then(|s| tz::db().get(s).ok())
             .unwrap_or(TimeZone::UTC);
 
-        self.start_time.to_jiff().to_zoned(tz)
+        self.start_time.to_jiff().to_zoned_datetime(tz)
     }
 
     pub async fn get(pool: &PgPool, id: MessageId) -> sqlx::Result<Self> {

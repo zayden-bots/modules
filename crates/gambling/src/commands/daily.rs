@@ -147,7 +147,7 @@ impl Commands {
             .unwrap_or_else(|| DailyRow::new(interaction.user.id));
 
         let now = jiff::Timestamp::now();
-        let today = now.to_zoned(TimeZone::UTC).date();
+        let today = now.to_zoned_datetime(TimeZone::UTC).date();
 
         if row.daily.to_jiff() == today {
             return Err(GamblingError::DailyClaimed(tomorrow(Some(now))?));

@@ -22,7 +22,7 @@ pub use gambling_stats::StatsManager;
 pub use game_row::{GameCommit, GameDelta, GameRow};
 use jiff::tz::TimeZone;
 use jiff::{Timestamp, Unit};
-use zayden_core::{EmojiCache, FormatNum};
+use zayden_core::{EmojiCache, FormatNum, Scheduled};
 
 use crate::shop::ShopCurrency;
 use crate::{GamblingError, Result, StaminaCron};
@@ -97,8 +97,7 @@ pub fn out_of_stamina() -> GamblingError {
         },
     };
 
-    let next_timestamp =
-        job.schedule.upcoming(TimeZone::UTC).next().unwrap_or_default().timestamp();
+    let next_timestamp = job.next_run(Timestamp::now()).unwrap_or_default();
 
     GamblingError::OutOfStamina(next_timestamp)
 }
@@ -375,12 +374,12 @@ pub trait MineAmount: MineHourly {
     fn mine_activity(&self) -> Timestamp;
 
     fn mine_amount(&self) -> Result<i64> {
-        let mine_activity = self.mine_activity().to_zoned(TimeZone::UTC);
+        let mine_activity = self.mine_activity().to_zoned_datetime(TimeZone::UTC);
 
         let mine_hour = mine_activity
             .date()
             .at(mine_activity.hour(), 0, 0, 0)
-            .to_zoned(TimeZone::UTC)
+            .to_zoned_datetime(TimeZone::UTC)
             .map_err(|e| {
                 GamblingError::Internal(format!("UTC timezone mapping failed: {e}"))
             })?

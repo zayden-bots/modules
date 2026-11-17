@@ -15,7 +15,7 @@ zayden-app = { workspace = true }
 zayden-core = { workspace = true }
 
 async-trait = { workspace = true }
-jiff = { workspace = true }
+jiff = { workspace = true, features = ["std", "tz-system", "tz-fat", "tzdb-bundle-platform", "tzdb-zoneinfo"] }
 jiff-sqlx = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

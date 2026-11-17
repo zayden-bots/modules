@@ -33,7 +33,7 @@ impl GamblingGoalsRow {
 
     #[must_use]
     pub fn is_today(&self) -> bool {
-        self.day.to_jiff() == jiff::Timestamp::now().to_zoned(TimeZone::UTC).date()
+        self.day.to_jiff() == jiff::Timestamp::now().to_zoned_datetime(TimeZone::UTC).date()
     }
 
     pub fn update_progress(&mut self, value: i64) {

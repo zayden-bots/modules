@@ -12,7 +12,7 @@ use jellyfin::components::{
     game,
 };
 use jellyfin::runtime::JellyfinRuntime;
-use serenity::all::FullEvent;
+use serenity::all::{FullEvent, GuildCreateGuild};
 use zayden_app::tasks::Task;
 use zayden_core::ctx::{ComponentCtx, ModalCtx};
 use zayden_core::error::HandlerError;
@@ -224,7 +224,9 @@ impl Module for WatchModule {
         cx: &EventCtx<'_>,
         ev: &FullEvent,
     ) -> Result<(), HandlerError> {
-        let FullEvent::GuildCreate { guild, .. } = ev else {
+        let FullEvent::GuildCreate { guild: GuildCreateGuild::Available(guild), .. } =
+            ev
+        else {
             return Ok(());
         };
 

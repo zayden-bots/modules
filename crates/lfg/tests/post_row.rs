@@ -9,7 +9,7 @@
 //! disagree.
 
 use jiff::tz::TimeZone;
-use jiff::{Timestamp, Zoned};
+use jiff::{Timestamp, ZonedDateTime};
 use lfg::PostBuilder;
 use lfg::templates::TemplateInfo;
 use serenity::all::{GenericChannelId, MessageId, ThreadId, UserId};
@@ -21,10 +21,10 @@ const SCHEDULE_CHANNEL: u64 = 906_513_020_320_886_814;
 const ALT_MESSAGE: u64 = 1_100_000_000_000_000_001;
 const START: i64 = 1_800_000_000;
 
-fn zoned(seconds: i64) -> Zoned {
+fn zoned(seconds: i64) -> ZonedDateTime {
     Timestamp::from_second(seconds)
         .unwrap_or(Timestamp::UNIX_EPOCH)
-        .to_zoned(TimeZone::UTC)
+        .to_zoned_datetime(TimeZone::UTC)
 }
 
 fn builder() -> PostBuilder {

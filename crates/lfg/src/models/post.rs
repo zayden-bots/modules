@@ -1,4 +1,4 @@
-use jiff::Zoned;
+use jiff::ZonedDateTime;
 use jiff::tz::TimeZone;
 use jiff_sqlx::{Timestamp, ToSqlx};
 use serenity::all::{GenericChannelId, MessageId, ThreadId, UserId};
@@ -14,7 +14,7 @@ pub struct PostBuilder {
     id: ThreadId,
     owner: UserId,
     activity: String,
-    start_time: Zoned,
+    start_time: ZonedDateTime,
     description: String,
     fireteam_size: i16,
     fireteam: Vec<UserId>,
@@ -27,7 +27,7 @@ impl PostBuilder {
     pub fn new(
         owner: UserId,
         activity: impl Into<String>,
-        start: Zoned,
+        start: ZonedDateTime,
         desc: impl Into<String>,
         fireteam_size: i16,
     ) -> Self {
@@ -70,7 +70,7 @@ impl PostBuilder {
     }
 
     #[must_use]
-    pub fn start(mut self, start: Zoned) -> Self {
+    pub fn start(mut self, start: ZonedDateTime) -> Self {
         self.start_time = start;
         self
     }
@@ -152,7 +152,7 @@ impl From<PostRow> for PostBuilder {
             id: ThreadId::new(as_u64(value.id)),
             owner: value.owner(),
             activity: value.activity,
-            start_time: value.start_time.to_jiff().to_zoned(TimeZone::UTC),
+            start_time: value.start_time.to_jiff().to_zoned_datetime(TimeZone::UTC),
             description: value.description,
             fireteam_size: value.fireteam_size,
             fireteam: value
