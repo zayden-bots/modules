@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT won AS \"won!\" FROM deadlock_matches_seen\n           WHERE account_id = $1 ORDER BY start_time, match_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "won!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "deadlock_matches_seen",
+            "name": "won"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "41df504b05fd15f5112b833dca1171b6eb98e81a42f2bce798d400bf90634c1b"
+}

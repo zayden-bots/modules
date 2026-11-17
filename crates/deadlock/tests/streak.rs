@@ -1,4 +1,11 @@
-use deadlock::match_poll::next_streak;
+use deadlock::match_poll::{next_streak, streak_from};
+
+#[test]
+fn a_streak_is_rebuilt_from_results_in_start_order() {
+    assert_eq!(streak_from(&[]), 0);
+    assert_eq!(streak_from(&[true, true, false, false, false]), -3);
+    assert_eq!(streak_from(&[false, true, true]), 2);
+}
 
 #[test]
 fn a_win_extends_a_winning_streak_or_starts_one() {

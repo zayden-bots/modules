@@ -37,3 +37,25 @@ pub async fn insert_if_new(pool: &PgPool, seen: &SeenMatch) -> sqlx::Result<bool
 
     Ok(inserted.is_some())
 }
+
+pub async fn recent_results(
+    pool: &PgPool,
+    account_id: u32,
+    limit: i64,
+) -> sqlx::Result<Vec<bool>> {
+    sqlx::query_scalar!(
+        r#"
+        SELECT won AS "won!" FROM (
+            SELECT won, start_time, match_id FROM deadlock_matches_seen
+            WHERE account_id = $1
+            ORDER BY start_time DESC, match_id DESC
+            LIMIT $2
+        ) recent
+        ORDER BY start_time, match_id
+        "#,
+        i64::from(account_id),
+        limit
+    )
+    .fetch_all(pool)
+    .await
+}

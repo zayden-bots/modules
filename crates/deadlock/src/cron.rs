@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 
 use deadlock_api::DeadlockApiError;
 use jiff::Timestamp;
@@ -13,7 +13,7 @@ use crate::briefing::{self, BriefingOutcome};
 use crate::client::DeadlockApi;
 use crate::deliver::deliver;
 use crate::error::DeadlockError;
-use crate::match_poll::{self, SummaryJob};
+use crate::match_poll::{self, PollMode, SummaryJob};
 use crate::patch_watch::{self, WatchOutcome};
 use crate::rank_poll::{self, SquadEvent};
 use crate::{gc, squad_deliver, tasks};
@@ -74,20 +74,41 @@ pub struct DeadlockMatchCron;
 impl DeadlockMatchCron {
     pub fn cron_job(api: Arc<DeadlockApi>) -> WorkerJobResult {
         let guard = Arc::new(RunGuard::default());
+        let last_sweep = Arc::new(AtomicI64::new(i64::MIN));
 
         WorkerJob::new("deadlock_match_poll", "0 */3 * * * * *").map(|job| {
             job.set_action(move |cx| {
                 let api = Arc::clone(&api);
                 let guard = Arc::clone(&guard);
+                let last_sweep = Arc::clone(&last_sweep);
 
                 async move {
                     let Some(ticket) = guard.try_start() else {
                         return;
                     };
 
-                    match match_poll::poll(&api, &cx.db, Timestamp::now()).await {
+                    let now = Timestamp::now();
+                    let stored = last_sweep.load(Ordering::Relaxed);
+                    let last = (stored != i64::MIN)
+                        .then(|| Timestamp::from_second(stored).ok())
+                        .flatten();
+                    let mode = if match_poll::sweep_due(last, now) {
+                        PollMode::Sweep
+                    } else {
+                        PollMode::Recent
+                    };
+
+                    match match_poll::poll(&api, &cx.db, now, mode).await {
                         Ok((outcome, jobs)) => {
-                            debug!(?outcome, "deadlock: match poll finished");
+                            if mode == PollMode::Sweep {
+                                last_sweep.store(now.as_second(), Ordering::Relaxed);
+                            }
+
+                            if mode == PollMode::Sweep && outcome.recovered > 0 {
+                                info!(?outcome, "deadlock: match sweep finished");
+                            } else {
+                                debug!(?outcome, "deadlock: match poll finished");
+                            }
 
                             if !jobs.is_empty() {
                                 tokio::spawn(summarize(ticket, cx, api, jobs));

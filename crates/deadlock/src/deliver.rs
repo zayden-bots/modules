@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time::Duration;
 
 use deadlock_api::Priority;
@@ -18,8 +18,36 @@ use crate::match_poll::SummaryJob;
 
 pub const DM_INTERVAL: Duration = Duration::from_secs(1);
 
+pub const MAX_RECOVERED_DMS: usize = 3;
+pub const MAX_RECOVERED_POSTS: usize = 3;
+
 const MAX_POST_SECTIONS: usize = 4;
 const CONCURRENCY: usize = 5;
+
+/// Every non-recovered match id plus the `max_recovered` newest recovered ones.
+#[must_use]
+pub fn allowed_matches(
+    entries: &[(u64, Timestamp, bool)],
+    max_recovered: usize,
+) -> HashSet<u64> {
+    let mut recovered: BTreeMap<u64, Timestamp> = BTreeMap::new();
+    let mut allowed = HashSet::new();
+
+    for (match_id, start_time, is_recovered) in entries {
+        if *is_recovered {
+            recovered.insert(*match_id, *start_time);
+        } else {
+            allowed.insert(*match_id);
+        }
+    }
+
+    let mut newest: Vec<(Timestamp, u64)> =
+        recovered.into_iter().map(|(id, start)| (start, id)).collect();
+    newest.sort_unstable_by(|a, b| b.cmp(a));
+    allowed.extend(newest.into_iter().take(max_recovered).map(|(_, id)| id));
+
+    allowed
+}
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct DeliveryOutcome {
@@ -62,8 +90,30 @@ async fn send_dms(
     let now = Timestamp::now();
     let mut sent = 0_usize;
 
+    let mut by_user: HashMap<i64, Vec<(u64, Timestamp, bool)>> = HashMap::new();
+    for job in jobs {
+        by_user.entry(job.discord_id).or_default().push((
+            job.summary.match_id,
+            job.summary.start_time,
+            job.recovered,
+        ));
+    }
+    let allowed: HashMap<i64, HashSet<u64>> = by_user
+        .iter()
+        .map(|(discord_id, entries)| {
+            (*discord_id, allowed_matches(entries, MAX_RECOVERED_DMS))
+        })
+        .collect();
+
     for job in jobs {
         if job.discord_id == 0 {
+            continue;
+        }
+
+        if !allowed
+            .get(&job.discord_id)
+            .is_some_and(|ids| ids.contains(&job.summary.match_id))
+        {
             continue;
         }
 
@@ -111,11 +161,15 @@ async fn post_to_guilds(
         by_match.entry(job.summary.match_id).or_default().push(job);
     }
 
-    let mut posts = Vec::new();
+    let mut built = Vec::new();
+    let mut guild_entries: HashMap<i64, Vec<(u64, Timestamp, bool)>> =
+        HashMap::new();
 
     for (match_id, match_jobs) in by_match {
         let mut by_guild: BTreeMap<i64, (i64, ApplicationId, Vec<&SummaryJob>)> =
             BTreeMap::new();
+        let recovered = match_jobs.iter().any(|job| job.recovered);
+        let start_time = match_jobs.first().map(|job| job.summary.start_time);
 
         for job in match_jobs {
             let targets = summary_channel::targets_for(pool, job.discord_id).await?;
@@ -131,7 +185,33 @@ async fn post_to_guilds(
             }
         }
 
+        if let Some(start_time) = start_time {
+            for guild_id in by_guild.keys() {
+                guild_entries
+                    .entry(*guild_id)
+                    .or_default()
+                    .push((match_id, start_time, recovered));
+            }
+        }
+
+        built.push((match_id, by_guild));
+    }
+
+    let allowed: HashMap<i64, HashSet<u64>> = guild_entries
+        .iter()
+        .map(|(guild_id, entries)| {
+            (*guild_id, allowed_matches(entries, MAX_RECOVERED_POSTS))
+        })
+        .collect();
+
+    let mut posts = Vec::new();
+
+    for (match_id, by_guild) in built {
         for (guild_id, (channel_id, application_id, guild_jobs)) in by_guild {
+            if !allowed.get(&guild_id).is_some_and(|ids| ids.contains(&match_id)) {
+                continue;
+            }
+
             if channel_id == 0
                 || !guild_posts::claim(pool, guild_id, match_id).await?
             {

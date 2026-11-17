@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deadlock_matches_seen (account_id, match_id, hero_id, won, start_time)\n         VALUES ($1, 1, 1, false, now() + interval '30 days')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d960d205df85e40dffe72062280ecea6e33002148445a9e9d40795c1a9bad2cc"
+}
