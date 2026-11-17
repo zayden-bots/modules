@@ -76,7 +76,10 @@ impl Module for MusicModule {
     ) -> Result<(), HandlerError> {
         if let FullEvent::VoiceStateUpdate { new, .. } = ev {
             self.music.occupancy().update(new);
-        } else if let FullEvent::GuildCreate { guild: GuildCreateGuild::Available(guild), .. } = ev
+        } else if let FullEvent::GuildCreate {
+            guild: GuildCreateGuild::Available(guild),
+            ..
+        } = ev
         {
             self.music.occupancy().guild_create(guild);
         }

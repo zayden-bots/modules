@@ -260,7 +260,8 @@ impl Module for LfgModule {
     ) -> Result<(), HandlerError> {
         match ev {
             FullEvent::GuildCreate {
-                guild: GuildCreateGuild::Available(guild), ..
+                guild: GuildCreateGuild::Available(guild),
+                ..
             } => {
                 events::guild_create(cx.ctx, guild, &cx.app.db, cx.me).await?;
             },

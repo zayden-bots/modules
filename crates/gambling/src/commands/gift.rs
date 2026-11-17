@@ -207,7 +207,9 @@ impl Commands {
 
         let now = jiff::Timestamp::now().to_zoned_datetime(TimeZone::UTC);
 
-        if user_row.gift.to_jiff().to_zoned_datetime(TimeZone::UTC).date() == now.date() {
+        if user_row.gift.to_jiff().to_zoned_datetime(TimeZone::UTC).date()
+            == now.date()
+        {
             return Err(GamblingError::GiftUsed(tomorrow(Some(now.timestamp()))?));
         }
 

@@ -94,7 +94,7 @@ impl Command {
                     format!(
                         "{0}\n<t:{1}> (<t:{1}:R>)\n{2}",
                         row.activity(),
-                        row.timestamp(),
+                        row.timestamp().as_second(),
                         row.channel_id().mention()
                     )
                 })
@@ -110,7 +110,7 @@ impl Command {
                     format!(
                         "{0}\n<t:{1}> (<t:{1}:R>)\n{2}",
                         row.activity(),
-                        row.timestamp(),
+                        row.timestamp().as_second(),
                         row.channel_id().mention()
                     )
                 })

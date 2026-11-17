@@ -107,7 +107,7 @@ async fn reminder(http: &Http, pool: PgPool, id: ThreadId) {
         },
     };
 
-    let timestamp = post.start_time.to_jiff();
+    let timestamp = post.start_time.to_jiff().as_second();
 
     let embed = CreateEmbed::new()
         .title(format!("{} - <t:{timestamp}>", post.activity))

@@ -168,7 +168,8 @@ async fn mute(
     let until = jiff::Timestamp::now()
         .checked_add(duration)
         .map_err(|e| CoreError::Other(e.to_string()))?;
-    let until = jiff_to_serenity(until).map_err(|e| CoreError::Other(e.to_string()))?;
+    let until =
+        jiff_to_serenity(until).map_err(|e| CoreError::Other(e.to_string()))?;
     member.disable_communication_until(&case.ctx.http, until).await?;
 
     case.record(InfractionKind::Mute).await?;

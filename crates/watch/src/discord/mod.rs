@@ -224,8 +224,9 @@ impl Module for WatchModule {
         cx: &EventCtx<'_>,
         ev: &FullEvent,
     ) -> Result<(), HandlerError> {
-        let FullEvent::GuildCreate { guild: GuildCreateGuild::Available(guild), .. } =
-            ev
+        let FullEvent::GuildCreate {
+            guild: GuildCreateGuild::Available(guild), ..
+        } = ev
         else {
             return Ok(());
         };

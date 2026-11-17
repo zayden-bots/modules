@@ -7879,7 +7879,7 @@ dependencies = [
 [[package]]
 name = "zayden-app"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/platform#3b73085e98e62ab6e96ab565ad6541be8b921956"
+source = "git+https://github.com/zayden-bots/platform#4b2ad82387fa9baf1c08cbbc39ed8d50c6a4e379"
 dependencies = [
  "async-trait",
  "aws-lc-rs",
@@ -7903,7 +7903,7 @@ dependencies = [
 [[package]]
 name = "zayden-core"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/platform#3b73085e98e62ab6e96ab565ad6541be8b921956"
+source = "git+https://github.com/zayden-bots/platform#4b2ad82387fa9baf1c08cbbc39ed8d50c6a4e379"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -7927,7 +7927,7 @@ dependencies = [
 [[package]]
 name = "zayden-graphics"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/platform#3b73085e98e62ab6e96ab565ad6541be8b921956"
+source = "git+https://github.com/zayden-bots/platform#4b2ad82387fa9baf1c08cbbc39ed8d50c6a4e379"
 dependencies = [
  "png",
  "resvg",
