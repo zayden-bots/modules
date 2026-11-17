@@ -7,12 +7,14 @@ use sqlx::PgPool;
 use super::watch_state::column_version;
 use crate::diff::PatchDiff;
 use crate::error::{DeadlockError, Result};
+use crate::patch_kind::PatchKind;
 
 #[derive(Debug, Clone)]
 pub struct PatchRow {
     pub guid: String,
     pub title: String,
     pub link: String,
+    pub kind: PatchKind,
     pub published_at: Timestamp,
     pub detected_at: Timestamp,
     pub diff: Option<PatchDiff>,
@@ -23,6 +25,7 @@ pub struct NewPatch<'a> {
     pub guid: &'a str,
     pub title: &'a str,
     pub link: &'a str,
+    pub kind: PatchKind,
     pub published_at: Timestamp,
 }
 
@@ -33,6 +36,7 @@ struct PatchRecord {
     published_at: jiff_sqlx::Timestamp,
     detected_at: jiff_sqlx::Timestamp,
     diff: Option<String>,
+    news: bool,
 }
 
 impl PatchRecord {
@@ -49,6 +53,7 @@ impl PatchRecord {
             guid: self.guid,
             title: self.title,
             link: self.link,
+            kind: PatchKind::from_news(self.news),
             published_at: self.published_at.to_jiff(),
             detected_at: self.detected_at.to_jiff(),
             diff,
@@ -75,15 +80,16 @@ pub async fn insert(
 ) -> sqlx::Result<()> {
     sqlx::query!(
         r#"
-        INSERT INTO deadlock_patches (guid, title, link, published_at, announced_at)
-        VALUES ($1, $2, $3, $4, CASE WHEN $5 THEN now() END)
+        INSERT INTO deadlock_patches (guid, title, link, published_at, announced_at, news)
+        VALUES ($1, $2, $3, $4, CASE WHEN $5 THEN now() END, $6)
         ON CONFLICT (guid) DO NOTHING
         "#,
         note.guid,
         note.title,
         note.link,
         note.published_at.to_sqlx() as jiff_sqlx::Timestamp,
-        announced
+        announced,
+        note.kind.is_news()
     )
     .execute(pool)
     .await?;
@@ -100,9 +106,10 @@ pub async fn awaiting_diff(pool: &PgPool) -> Result<Vec<PatchRow>> {
                link,
                published_at AS "published_at: jiff_sqlx::Timestamp",
                detected_at AS "detected_at: jiff_sqlx::Timestamp",
-               diff
+               diff,
+               news
         FROM deadlock_patches
-        WHERE announced_at IS NULL AND diff IS NULL
+        WHERE announced_at IS NULL AND diff IS NULL AND NOT news
         ORDER BY published_at, guid
         "#
     )
@@ -150,9 +157,10 @@ pub async fn ready(pool: &PgPool) -> Result<Vec<PatchRow>> {
                link,
                published_at AS "published_at: jiff_sqlx::Timestamp",
                detected_at AS "detected_at: jiff_sqlx::Timestamp",
-               diff
+               diff,
+               news
         FROM deadlock_patches
-        WHERE announced_at IS NULL AND diff IS NOT NULL
+        WHERE announced_at IS NULL AND (diff IS NOT NULL OR news)
         ORDER BY published_at, guid
         "#
     )
@@ -160,6 +168,16 @@ pub async fn ready(pool: &PgPool) -> Result<Vec<PatchRow>> {
     .await?;
 
     records.into_iter().map(PatchRecord::into_row).collect()
+}
+
+pub async fn patch_times(pool: &PgPool) -> sqlx::Result<Vec<Timestamp>> {
+    let times = sqlx::query_scalar!(
+        r#"SELECT published_at AS "published_at: jiff_sqlx::Timestamp" FROM deadlock_patches WHERE NOT news"#
+    )
+    .fetch_all(pool)
+    .await?;
+
+    Ok(times.into_iter().map(jiff_sqlx::Timestamp::to_jiff).collect())
 }
 
 pub async fn mark_announced(pool: &PgPool, guid: &str) -> sqlx::Result<()> {
@@ -189,7 +207,8 @@ pub async fn awaiting_briefing(
                link,
                published_at AS "published_at: jiff_sqlx::Timestamp",
                detected_at AS "detected_at: jiff_sqlx::Timestamp",
-               diff
+               diff,
+               news
         FROM deadlock_patches
         WHERE briefed_at IS NULL AND diff IS NOT NULL AND published_at >= $1
         ORDER BY published_at, guid

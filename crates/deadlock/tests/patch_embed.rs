@@ -1,6 +1,7 @@
 use deadlock::db::patches::PatchRow;
 use deadlock::diff::{Change, HeroDiff, PatchDiff, Presence};
 use deadlock::embeds::patch_component;
+use deadlock::patch_kind::PatchKind;
 use jiff::Timestamp;
 use serde_json::Value;
 use zayden_core::limits::message::COMPONENTS_TEXT as MAX_TEXT;
@@ -13,6 +14,7 @@ fn patch(diff: Option<PatchDiff>) -> PatchRow {
         guid: "forum-1".to_owned(),
         title: TITLE.to_owned(),
         link: LINK.to_owned(),
+        kind: PatchKind::Patch,
         published_at: Timestamp::UNIX_EPOCH,
         detected_at: Timestamp::UNIX_EPOCH,
         diff,
@@ -74,6 +76,17 @@ fn a_patch_without_changes_says_so() {
         serde_json::to_string(&patch_component(&patch(None), MAX_TEXT)).unwrap();
 
     assert!(json.contains("No hero or item stat changes detected."));
+}
+
+#[test]
+fn a_news_post_has_no_change_list() {
+    let news = PatchRow { kind: PatchKind::News, ..patch(None) };
+
+    let json = serde_json::to_string(&patch_component(&news, MAX_TEXT)).unwrap();
+
+    assert!(json.contains(TITLE));
+    assert!(json.contains(LINK));
+    assert!(!json.contains("No hero or item stat changes detected."));
 }
 
 #[test]

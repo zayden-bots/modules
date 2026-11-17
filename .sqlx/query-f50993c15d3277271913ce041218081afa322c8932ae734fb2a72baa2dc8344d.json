@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO deadlock_patch_announce (guild_id, channel_id, message, include_news)\n            VALUES ($1, $2, $3, $4)\n            ON CONFLICT (guild_id) DO UPDATE\n            SET channel_id = EXCLUDED.channel_id,\n                message = EXCLUDED.message,\n                include_news = EXCLUDED.include_news,\n                updated_at = now()\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f50993c15d3277271913ce041218081afa322c8932ae734fb2a72baa2dc8344d"
+}

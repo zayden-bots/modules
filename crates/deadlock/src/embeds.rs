@@ -22,6 +22,7 @@ use crate::db::patches::PatchRow;
 use crate::diff::{Change, HeroDiff, ItemDiff, PatchDiff, Presence};
 use crate::heroes::HeroIndex;
 use crate::items::ItemIndex;
+use crate::patch_kind::PatchKind;
 use crate::rank_poll::{SquadEvent, SquadEventKind};
 use crate::squad::LeaderboardEntry;
 use crate::summary::MatchSummary;
@@ -425,6 +426,15 @@ pub fn patch_component(
     patch: &PatchRow,
     text_budget: usize,
 ) -> CreateComponent<'static> {
+    if patch.kind == PatchKind::News {
+        let header =
+            format!("## {}\n[Read the full post]({})", patch.title, patch.link);
+
+        return CreateComponent::Container(
+            CreateContainer::new(vec![text(header)]).accent_colour(ACCENT),
+        );
+    }
+
     let header = format!(
         "## {}\n[Read the official patch notes]({})",
         patch.title, patch.link

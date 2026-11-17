@@ -46,7 +46,7 @@ impl DeadlockError {
     pub fn is_transient(&self) -> bool {
         matches!(
             self,
-            Self::Api(DeadlockApiError::Request(e)) if e.is_timeout() || e.is_connect()
+            Self::Api(DeadlockApiError::Request(e)) if e.is_timeout() || e.is_connect() || e.is_request()
         ) || matches!(
             self,
             Self::Api(DeadlockApiError::Http { status }) if status.is_server_error()

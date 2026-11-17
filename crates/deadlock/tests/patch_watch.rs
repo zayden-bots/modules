@@ -3,6 +3,7 @@ mod common;
 use common::{Mock, Reply, api, spawn_mock};
 use deadlock::db::watch_state::{self, WatchKey};
 use deadlock::db::{patches, snapshots};
+use deadlock::patch_kind::PatchKind;
 use deadlock::patch_watch::{self, BUILD_GRACE, MAX_NOTE_AGE, WatchOutcome};
 use jiff::{SignedDuration, Timestamp};
 use serde_json::{Value, json};
@@ -28,9 +29,18 @@ fn heroes(max_health: f64) -> Value {
 }
 
 fn note(source: &str, guid: &str, published_at: Timestamp) -> Value {
+    titled_note(source, guid, &format!("Update {guid}"), published_at)
+}
+
+fn titled_note(
+    source: &str,
+    guid: &str,
+    title: &str,
+    published_at: Timestamp,
+) -> Value {
     json!({
         "source": source,
-        "title": format!("Update {guid}"),
+        "title": title,
         "pub_date": published_at.to_string(),
         "link": format!("https://example.com/{guid}"),
         "guid": { "text": guid }
@@ -190,7 +200,7 @@ async fn a_note_without_a_version_bump_waits_for_the_build_then_gets_an_empty_di
 }
 
 #[sqlx::test(migrator = "schema::MIGRATOR")]
-async fn an_old_note_is_stored_announced_and_other_sources_are_ignored(
+async fn an_old_note_is_stored_announced_and_unknown_sources_are_ignored(
     pool: PgPool,
 ) {
     let now = Timestamp::now();
@@ -201,7 +211,7 @@ async fn an_old_note_is_stored_announced_and_other_sources_are_ignored(
     serve(
         &mock,
         PATCHES,
-        &json!([note("forum", FORUM_OLD, old), note("steam", STEAM_NEW, now)]),
+        &json!([note("forum", FORUM_OLD, old), note("reddit", STEAM_NEW, now)]),
     );
     let outcome = run_at!(&api, &pool, now);
     let known = patches::known_guids(&pool).await.unwrap();
@@ -211,4 +221,56 @@ async fn an_old_note_is_stored_announced_and_other_sources_are_ignored(
     assert!(!known.contains(STEAM_NEW));
     assert!(patches::awaiting_diff(&pool).await.unwrap().is_empty());
     assert!(patches::ready(&pool).await.unwrap().is_empty());
+}
+
+#[sqlx::test(migrator = "schema::MIGRATOR")]
+async fn steam_news_is_ready_at_once_without_a_diff(pool: PgPool) {
+    let now = Timestamp::now();
+    let (mock, api) = setup!(&pool, &[1], 830.0, &[]);
+    run_at!(&api, &pool, now);
+
+    serve(
+        &mock,
+        PATCHES,
+        &json!([titled_note("steam", STEAM_NEW, "Paint the Town", now)]),
+    );
+    run_at!(&api, &pool, now);
+
+    let ready = patches::ready(&pool).await.unwrap();
+    let [patch] = ready.as_slice() else {
+        panic!("expected one ready patch, got {}", ready.len());
+    };
+
+    assert_eq!(patch.guid, STEAM_NEW);
+    assert_eq!(patch.kind, PatchKind::News);
+    assert!(patch.diff.is_none());
+    assert!(patches::awaiting_diff(&pool).await.unwrap().is_empty());
+}
+
+#[sqlx::test(migrator = "schema::MIGRATOR")]
+async fn a_steam_patch_duplicating_a_forum_patch_is_stored_once(pool: PgPool) {
+    let now = Timestamp::now();
+    let (mock, api) = setup!(&pool, &[1], 830.0, &[]);
+    run_at!(&api, &pool, now);
+
+    let earlier = now.checked_sub(SignedDuration::from_secs(2)).unwrap();
+    serve(
+        &mock,
+        PATCHES,
+        &json!([
+            note("forum", FORUM_NEW, now),
+            titled_note("steam", STEAM_NEW, "Minor Update", earlier)
+        ]),
+    );
+    run_at!(&api, &pool, now);
+
+    let known = patches::known_guids(&pool).await.unwrap();
+
+    assert_eq!(
+        [FORUM_NEW, STEAM_NEW]
+            .into_iter()
+            .filter(|guid| known.contains(*guid))
+            .count(),
+        1
+    );
 }

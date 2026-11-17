@@ -8,6 +8,7 @@ pub struct PatchAnnounceRow {
     pub channel_id: i64,
     pub message: Option<String>,
     pub ping_role_ids: Vec<i64>,
+    pub include_news: bool,
 }
 
 impl PatchAnnounceRow {
@@ -20,7 +21,7 @@ impl PatchAnnounceRow {
         let row = sqlx::query_as!(
             Self,
             r#"
-            SELECT guild_id, channel_id, message, ping_role_ids
+            SELECT guild_id, channel_id, message, ping_role_ids, include_news
             FROM deadlock_patch_announce
             WHERE guild_id = $1
             "#,
@@ -37,6 +38,7 @@ impl PatchAnnounceRow {
         guild_id: i64,
         channel_id: i64,
         message: Option<&str>,
+        include_news: bool,
     ) -> sqlx::Result<()> {
         sqlx::query!(
             "INSERT INTO guilds (id) VALUES ($1) ON CONFLICT (id) DO NOTHING",
@@ -47,16 +49,18 @@ impl PatchAnnounceRow {
 
         sqlx::query!(
             r#"
-            INSERT INTO deadlock_patch_announce (guild_id, channel_id, message)
-            VALUES ($1, $2, $3)
+            INSERT INTO deadlock_patch_announce (guild_id, channel_id, message, include_news)
+            VALUES ($1, $2, $3, $4)
             ON CONFLICT (guild_id) DO UPDATE
             SET channel_id = EXCLUDED.channel_id,
                 message = EXCLUDED.message,
+                include_news = EXCLUDED.include_news,
                 updated_at = now()
             "#,
             guild_id,
             channel_id,
-            message
+            message,
+            include_news
         )
         .execute(pool)
         .await?;
@@ -134,7 +138,7 @@ pub struct PatchTarget {
 pub async fn targets(pool: &PgPool) -> sqlx::Result<Vec<PatchTarget>> {
     let rows = sqlx::query!(
         r#"
-        SELECT a.guild_id, a.channel_id, a.message, a.ping_role_ids,
+        SELECT a.guild_id, a.channel_id, a.message, a.ping_role_ids, a.include_news,
                delivery_application(a.guild_id, a.delivery_application_id) AS "application_id!"
         FROM deadlock_patch_announce a
         WHERE delivery_application(a.guild_id, a.delivery_application_id) IS NOT NULL
@@ -158,6 +162,7 @@ pub async fn targets(pool: &PgPool) -> sqlx::Result<Vec<PatchTarget>> {
                 channel_id: r.channel_id,
                 message: r.message,
                 ping_role_ids: r.ping_role_ids,
+                include_news: r.include_news,
             },
             application_id: ApplicationId::new(as_u64(r.application_id)),
         })

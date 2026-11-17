@@ -3,6 +3,7 @@ use deadlock::db::briefings::RecentHero;
 use deadlock::db::patches::PatchRow;
 use deadlock::diff::{Change, HeroDiff, PatchDiff, Presence};
 use deadlock::embeds::briefing_dm;
+use deadlock::patch_kind::PatchKind;
 use jiff::Timestamp;
 
 const TITLE: &str = "Update 14 October";
@@ -131,6 +132,7 @@ fn the_briefing_lists_only_the_given_heroes_and_the_patch_link() {
         guid: "forum-1".to_owned(),
         title: TITLE.to_owned(),
         link: LINK.to_owned(),
+        kind: PatchKind::Patch,
         published_at: Timestamp::UNIX_EPOCH,
         detected_at: Timestamp::UNIX_EPOCH,
         diff: Some(diff(vec![

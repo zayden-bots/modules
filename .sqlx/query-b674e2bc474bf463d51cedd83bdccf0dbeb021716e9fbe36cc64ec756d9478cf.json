@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT published_at AS \"published_at: jiff_sqlx::Timestamp\" FROM deadlock_patches WHERE NOT news",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "published_at: jiff_sqlx::Timestamp",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "deadlock_patches",
+            "name": "published_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b674e2bc474bf463d51cedd83bdccf0dbeb021716e9fbe36cc64ec756d9478cf"
+}

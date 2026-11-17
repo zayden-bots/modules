@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT guid,\n               title,\n               link,\n               published_at AS \"published_at: jiff_sqlx::Timestamp\",\n               detected_at AS \"detected_at: jiff_sqlx::Timestamp\",\n               diff\n        FROM deadlock_patches\n        WHERE announced_at IS NULL AND diff IS NOT NULL\n        ORDER BY published_at, guid\n        ",
+  "query": "\n        SELECT guid,\n               title,\n               link,\n               published_at AS \"published_at: jiff_sqlx::Timestamp\",\n               detected_at AS \"detected_at: jiff_sqlx::Timestamp\",\n               diff,\n               news\n        FROM deadlock_patches\n        WHERE announced_at IS NULL AND (diff IS NOT NULL OR news)\n        ORDER BY published_at, guid\n        ",
   "describe": {
     "columns": [
       {
@@ -68,6 +68,17 @@
             "name": "diff"
           }
         }
+      },
+      {
+        "ordinal": 6,
+        "name": "news",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "deadlock_patches",
+            "name": "news"
+          }
+        }
       }
     ],
     "parameters": {
@@ -79,8 +90,9 @@
       false,
       false,
       false,
-      true
+      true,
+      false
     ]
   },
-  "hash": "f871e1ea2e7e6eda3f341f5b0f2aa7619987fa0f315a6da897a8eb8342487578"
+  "hash": "12565d33e9e4ee23e27f157d02ab650058ea48bd7caed1c48a328ee250cc8879"
 }

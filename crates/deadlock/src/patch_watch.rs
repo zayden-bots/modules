@@ -2,7 +2,7 @@ use deadlock_api::Priority;
 use deadlock_api::model::PatchNote;
 use jiff::{SignedDuration, Timestamp};
 use sqlx::PgPool;
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 use crate::client::DeadlockApi;
 use crate::db::patches::{self, NewPatch};
@@ -10,8 +10,9 @@ use crate::db::snapshots;
 use crate::db::watch_state::{self, WatchKey};
 use crate::diff::{self, PatchDiff, Snapshot};
 use crate::error::{DeadlockError, Result};
+use crate::patch_kind::{PatchKind, classify};
 
-pub const PATCH_SOURCE: &str = "forum";
+pub const DUPLICATE_WINDOW: SignedDuration = SignedDuration::from_mins(10);
 pub const BUILD_GRACE: SignedDuration = SignedDuration::from_mins(30);
 pub const MAX_NOTE_AGE: SignedDuration = SignedDuration::from_hours(48);
 
@@ -110,12 +111,16 @@ async fn store_notes(
     seeding: bool,
 ) -> Result<usize> {
     let known = patches::known_guids(pool).await?;
+    let mut patch_times = patches::patch_times(pool).await?;
     let mut fresh = 0;
 
     for note in notes {
-        if note.source != PATCH_SOURCE || known.contains(&note.guid.text) {
+        if known.contains(&note.guid.text) {
             continue;
         }
+        let Some(kind) = classify(&note.source, &note.title) else {
+            continue;
+        };
 
         let published_at = match parse_date(&note.pub_date) {
             Ok(published_at) => published_at,
@@ -125,14 +130,31 @@ async fn store_notes(
             },
         };
 
+        if kind == PatchKind::Patch
+            && patch_times
+                .iter()
+                .any(|t| published_at.duration_since(*t).abs() <= DUPLICATE_WINDOW)
+        {
+            debug!(
+                guid = note.guid.text,
+                "deadlock: skipping a duplicate patch note"
+            );
+            continue;
+        }
+
         let announced = seeding || now.duration_since(published_at) > MAX_NOTE_AGE;
         let patch = NewPatch {
             guid: &note.guid.text,
-            title: &note.title,
+            title: note.title.trim(),
             link: &note.link,
+            kind,
             published_at,
         };
         patches::insert(pool, &patch, announced).await?;
+
+        if kind == PatchKind::Patch {
+            patch_times.push(published_at);
+        }
 
         if !announced {
             fresh += 1;

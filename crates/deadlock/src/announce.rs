@@ -9,10 +9,13 @@ use crate::db::announce::{self, PatchAnnounceRow, PatchTarget};
 use crate::db::patches::{self, PatchRow};
 use crate::embeds;
 use crate::error::Result;
+use crate::patch_kind::PatchKind;
 
 const CONCURRENCY: usize = 5;
 
 pub const DEFAULT_MESSAGE: &str = "{roles} New Deadlock patch: **{title}**";
+
+pub const DEFAULT_NEWS_MESSAGE: &str = "{roles} Deadlock news: **{title}**";
 
 pub const PLACEHOLDERS: &[(&str, &str)] = &[
     ("{roles}", "the roles to ping"),
@@ -24,7 +27,10 @@ pub const PLACEHOLDERS: &[(&str, &str)] = &[
 pub fn patch_message(row: &PatchAnnounceRow, patch: &PatchRow) -> Post<'static> {
     let title = escape(&patch.title);
     let content = render(
-        row.message.as_deref().unwrap_or(DEFAULT_MESSAGE),
+        row.message.as_deref().unwrap_or(match patch.kind {
+            PatchKind::Patch => DEFAULT_MESSAGE,
+            PatchKind::News => DEFAULT_NEWS_MESSAGE,
+        }),
         &row.ping_role_ids,
         &[("title", &title), ("link", &patch.link)],
     );
@@ -52,8 +58,13 @@ pub async fn announce_ready(cx: &CronCtx) -> Result<usize> {
     let targets = announce::targets(pool).await?;
 
     for patch in &ready {
-        let posts: Vec<_> =
-            targets.iter().map(|target| post(cx, target, patch)).collect();
+        let posts: Vec<_> = targets
+            .iter()
+            .filter(|target| {
+                patch.kind == PatchKind::Patch || target.row.include_news
+            })
+            .map(|target| post(cx, target, patch))
+            .collect();
 
         futures::stream::iter(posts)
             .buffer_unordered(CONCURRENCY)

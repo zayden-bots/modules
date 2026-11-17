@@ -15,6 +15,7 @@ pub mod gc;
 pub mod heroes;
 pub mod items;
 pub mod match_poll;
+pub mod patch_kind;
 pub mod patch_watch;
 pub mod rank_poll;
 pub mod squad;
