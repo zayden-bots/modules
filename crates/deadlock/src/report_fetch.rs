@@ -18,6 +18,7 @@ use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 use sqlx::PgPool;
 use tracing::{debug, info, warn};
+use zayden_app::events::DeadlockAppEvent;
 
 use crate::client::{CacheKind, DeadlockApi};
 use crate::db::matches::{self, SeenMatch};
@@ -640,6 +641,15 @@ async fn step(
             }
 
             if ready {
+                if let Err(e) = (DeadlockAppEvent::MatchReady {
+                    discord_id: wait.discord_id,
+                    match_id,
+                })
+                .notify(pool)
+                .await
+                {
+                    warn!(match_id, account_id, error = %e, "deadlock: match_ready push failed");
+                }
                 outcome.ready += 1;
                 if let Some(job) = summary_job(api, pool, &wait, &body).await? {
                     outcome.summaries += 1;

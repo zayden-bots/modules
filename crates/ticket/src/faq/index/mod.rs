@@ -89,7 +89,8 @@ impl WikiIndex {
                         | AppEvent::LoadoutsChanged
                         | AppEvent::TaskScheduled(_)
                         | AppEvent::DeliveryChanged(_)
-                        | AppEvent::WebhookBroken { .. },
+                        | AppEvent::WebhookBroken { .. }
+                        | AppEvent::DeadlockApp(_),
                     ) => {},
                     Err(RecvError::Lagged(n)) => {
                         warn!(n, "wiki index invalidator lagged; dropping all");

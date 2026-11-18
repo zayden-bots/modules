@@ -8,6 +8,8 @@ use deadlock::patch_watch::{self, BUILD_GRACE, MAX_NOTE_AGE, WatchOutcome};
 use jiff::{SignedDuration, Timestamp};
 use serde_json::{Value, json};
 use sqlx::PgPool;
+use sqlx::postgres::PgListener;
+use zayden_app::events::DeadlockAppEvent;
 
 const VERSIONS: &str = "/v1/assets/client-versions";
 const HEROES: &str = "/v1/assets/heroes";
@@ -136,6 +138,31 @@ async fn a_new_client_version_alone_stores_a_snapshot_and_moves_only_latest(
     assert!(snapshots::load(&pool, 2).await.unwrap().is_some());
     assert!(patches::ready(&pool).await.unwrap().is_empty());
     assert_eq!(fetched(&mock, "client_version=2"), 2);
+}
+
+#[sqlx::test(migrator = "schema::MIGRATOR")]
+async fn a_new_client_version_pushes_a_patch_event(pool: PgPool) {
+    let now = Timestamp::now();
+    let mut listener = PgListener::connect_with(&pool).await.unwrap();
+    listener.listen("deadlock_app").await.unwrap();
+
+    let (mock, api) = setup!(&pool, &[1], 830.0, &[]);
+    run_at!(&api, &pool, now);
+
+    let sentinel = DeadlockAppEvent::LinkChanged { discord_id: -1 };
+    sentinel.notify(&pool).await.unwrap();
+    let first = listener.recv().await.unwrap();
+    assert_eq!(DeadlockAppEvent::decode(first.payload()), Some(sentinel));
+
+    serve(&mock, VERSIONS, &json!([1, 2]));
+    serve(&mock, HEROES, &heroes(850.0));
+    run_at!(&api, &pool, now);
+
+    let pushed = listener.recv().await.unwrap();
+    assert_eq!(
+        DeadlockAppEvent::decode(pushed.payload()),
+        Some(DeadlockAppEvent::Patch { client_version: 2 })
+    );
 }
 
 #[sqlx::test(migrator = "schema::MIGRATOR")]

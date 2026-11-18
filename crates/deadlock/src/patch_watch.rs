@@ -3,6 +3,7 @@ use deadlock_api::model::PatchNote;
 use jiff::{SignedDuration, Timestamp};
 use sqlx::PgPool;
 use tracing::{debug, error, warn};
+use zayden_app::events::DeadlockAppEvent;
 
 use crate::client::DeadlockApi;
 use crate::db::patches::{self, NewPatch};
@@ -50,6 +51,12 @@ pub async fn run(
             }
             watch_state::set(pool, WatchKey::Latest, latest).await?;
             api.invalidate_unversioned().await?;
+            if let Err(e) = (DeadlockAppEvent::Patch { client_version: latest })
+                .notify(pool)
+                .await
+            {
+                warn!(client_version = latest, error = %e, "deadlock: patch push failed");
+            }
             outcome.new_version = Some(latest);
         },
         Some(_) => {},

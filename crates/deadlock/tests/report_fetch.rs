@@ -31,6 +31,8 @@ use deadlock::report_fetch::{
 use deadlock_api::{DeadlockClient, Limiter};
 use jiff::{SignedDuration, Timestamp};
 use sqlx::PgPool;
+use sqlx::postgres::PgListener;
+use zayden_app::events::DeadlockAppEvent;
 
 const SALTS: &str = include_str!("fixtures/match_salts.json");
 const METADATA: &str = include_str!("fixtures/match_metadata.json");
@@ -247,6 +249,50 @@ async fn ready_when_deadlock_api_has_the_match(pool: PgPool) {
     let requested = targets(&mock);
     assert_eq!(requested.len(), 2);
     assert!(requested.iter().all(|target| target.ends_with("?disable_steam=true")));
+}
+
+#[sqlx::test(migrator = "schema::MIGRATOR")]
+async fn ready_pushes_match_ready(pool: PgPool) {
+    let mock = spawn_mock(not_found()).await.unwrap();
+    serve_match(&mock);
+    let api = api(&pool, &mock.base).unwrap();
+    let now = now();
+    wait(&pool, ACCOUNT, now, 0).await;
+    let mut listener = PgListener::connect_with(&pool).await.unwrap();
+    listener.listen("deadlock_app").await.unwrap();
+
+    report_fetch::run(&client(&mock), &api, &pool, &SteamLedger::default(), now)
+        .await
+        .unwrap();
+
+    let pushed = listener.recv().await.unwrap();
+    assert_eq!(
+        DeadlockAppEvent::decode(pushed.payload()),
+        Some(DeadlockAppEvent::MatchReady {
+            discord_id: DISCORD_ID,
+            match_id: MATCH_ID
+        })
+    );
+}
+
+#[sqlx::test(migrator = "schema::MIGRATOR")]
+async fn not_in_match_pushes_nothing(pool: PgPool) {
+    let mock = spawn_mock(not_found()).await.unwrap();
+    serve_match(&mock);
+    let api = api(&pool, &mock.base).unwrap();
+    let now = now();
+    wait(&pool, 7, now, 0).await;
+    let mut listener = PgListener::connect_with(&pool).await.unwrap();
+    listener.listen("deadlock_app").await.unwrap();
+
+    report_fetch::run(&client(&mock), &api, &pool, &SteamLedger::default(), now)
+        .await
+        .unwrap();
+
+    let sentinel = DeadlockAppEvent::LinkChanged { discord_id: -1 };
+    sentinel.notify(&pool).await.unwrap();
+    let next = listener.recv().await.unwrap();
+    assert_eq!(DeadlockAppEvent::decode(next.payload()), Some(sentinel));
 }
 
 #[sqlx::test(migrator = "schema::MIGRATOR")]

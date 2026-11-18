@@ -40,6 +40,7 @@ pub(crate) fn spawn_youtube_listener(cx: CronCtx, runtime: YoutubeRuntime) {
                     | AppEvent::TaskScheduled(_)
                     | AppEvent::DeliveryChanged(_)
                     | AppEvent::WebhookBroken { .. }
+                    | AppEvent::DeadlockApp(_)
                     // The next poll re-reads every channel, so nothing is lost.
                     | AppEvent::Resync,
                 ) => {},

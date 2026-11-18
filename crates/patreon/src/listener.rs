@@ -27,7 +27,8 @@ pub(crate) fn spawn_patreon_listener(cx: CronCtx) {
                     | AppEvent::LoadoutsChanged
                     | AppEvent::TaskScheduled(_)
                     | AppEvent::DeliveryChanged(_)
-                    | AppEvent::WebhookBroken { .. },
+                    | AppEvent::WebhookBroken { .. }
+                    | AppEvent::DeadlockApp(_),
                 ) => {},
                 Err(RecvError::Lagged(n)) => {
                     warn!(

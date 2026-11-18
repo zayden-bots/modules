@@ -32,7 +32,8 @@ pub fn spawn_cache_listener(app: Arc<AppState>) {
                     | AppEvent::CustomBotsChanged(_)
                     | AppEvent::TaskScheduled(_)
                     | AppEvent::DeliveryChanged(_)
-                    | AppEvent::WebhookBroken { .. },
+                    | AppEvent::WebhookBroken { .. }
+                    | AppEvent::DeadlockApp(_),
                 ) => {},
                 Err(RecvError::Closed) => break,
             }
