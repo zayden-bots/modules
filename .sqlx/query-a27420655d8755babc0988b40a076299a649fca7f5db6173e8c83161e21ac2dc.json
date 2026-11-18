@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deadlock_api_cache\n            (key, kind, client_version, body, fetched_at, expires_at)\n        VALUES ($1, $2, $3, $4, now(), now() + make_interval(secs => $5))\n        ON CONFLICT (key) DO UPDATE SET\n            kind = EXCLUDED.kind,\n            client_version = EXCLUDED.client_version,\n            body = EXCLUDED.body,\n            fetched_at = now(),\n            expires_at = EXCLUDED.expires_at\n        RETURNING fetched_at as \"fetched_at: jiff_sqlx::Timestamp\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "fetched_at: jiff_sqlx::Timestamp",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "deadlock_api_cache",
+            "name": "fetched_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int4",
+        "Text",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a27420655d8755babc0988b40a076299a649fca7f5db6173e8c83161e21ac2dc"
+}

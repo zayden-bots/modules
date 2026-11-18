@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT kind, client_version,\n            EXTRACT(EPOCH FROM expires_at - fetched_at)::float8 AS \"ttl_secs!\"\n        FROM deadlock_api_cache WHERE key = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deadlock_api_cache",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "client_version",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "deadlock_api_cache",
+            "name": "client_version"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "ttl_secs!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      null
+    ]
+  },
+  "hash": "5c0839c153cbedaa194ab9165959f6509b752231bcfc085fe5fde28eed7af538"
+}

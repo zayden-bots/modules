@@ -41,6 +41,7 @@ pub enum CacheKind {
     Analytics,
     Build,
     Patch,
+    Match,
 }
 
 impl CacheKind {
@@ -51,6 +52,7 @@ impl CacheKind {
             Self::Analytics => "analytics",
             Self::Build => "build",
             Self::Patch => "patch",
+            Self::Match => "match",
         }
     }
 }
@@ -156,9 +158,11 @@ impl DeadlockApi {
         self.performance_curve_cache.invalidate_all();
         self.builds_cache.invalidate_all();
 
-        sqlx::query!("DELETE FROM deadlock_api_cache WHERE client_version IS NULL")
-            .execute(&self.pool)
-            .await?;
+        sqlx::query!(
+            "DELETE FROM deadlock_api_cache WHERE client_version IS NULL AND kind <> 'match'"
+        )
+        .execute(&self.pool)
+        .await?;
 
         Ok(())
     }

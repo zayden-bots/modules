@@ -41,6 +41,26 @@ pub enum DeadlockError {
     Delivery(#[from] DeliveryError),
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum ProxyError {
+    #[error("not a proxied deadlock-api path: {0}")]
+    NotProxied(String),
+    #[error("deadlock-api has no such resource")]
+    NotFound,
+    #[error("deadlock-api rejected the request with status {status}")]
+    Rejected { status: u16 },
+    #[error("deadlock-api is unavailable: {0}")]
+    Upstream(#[source] DeadlockApiError),
+    #[error("deadlock-api sent a body that is not JSON: {0}")]
+    InvalidBody(#[source] serde_json::Error),
+    #[error("another request for this resource is still in flight")]
+    Busy,
+    #[error("deadlock-api sent {bytes} bytes, more than the proxy keeps")]
+    TooLarge { bytes: usize },
+    #[error(transparent)]
+    Sqlx(#[from] sqlx::Error),
+}
+
 impl DeadlockError {
     #[must_use]
     pub fn is_transient(&self) -> bool {

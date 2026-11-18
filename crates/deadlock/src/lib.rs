@@ -17,6 +17,7 @@ pub mod items;
 pub mod match_poll;
 pub mod patch_kind;
 pub mod patch_watch;
+pub mod proxy;
 pub mod rank_poll;
 pub mod squad;
 pub mod squad_deliver;
@@ -26,5 +27,6 @@ mod worker;
 
 pub use client::DeadlockApi;
 pub use discord::DeadlockModule;
-pub use error::{DeadlockError, Result};
+pub use error::{DeadlockError, ProxyError, Result};
+pub use proxy::DeadlockProxy;
 pub use worker::DeadlockWorker;

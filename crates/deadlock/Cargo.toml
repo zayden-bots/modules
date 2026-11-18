@@ -27,7 +27,7 @@ serde_json = { workspace = true, features = ["std"] }
 serenity = { workspace = true, features = ["rustls_backend", "builder", "gateway"] }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["rt", "time"] }
+tokio = { workspace = true, features = ["rt", "sync", "time"] }
 tracing = { workspace = true }
 
 [dev-dependencies]

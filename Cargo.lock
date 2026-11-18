@@ -5367,7 +5367,7 @@ dependencies = [
 [[package]]
 name = "schema"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/schema#36665dc4950cb3f0b20d302b98ed6ebdf2c31ffb"
+source = "git+https://github.com/zayden-bots/schema#86506383f4fb4a50b2ff461c031c7086c58f4c62"
 dependencies = [
  "sqlx",
 ]
@@ -5629,7 +5629,6 @@ dependencies = [
  "tokio-tungstenite",
  "tracing",
  "url",
- "zstd",
 ]
 
 [[package]]
@@ -7879,7 +7878,7 @@ dependencies = [
 [[package]]
 name = "zayden-app"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/platform#90801967624aef578ad329d7bcd7b964bb61b25b"
+source = "git+https://github.com/zayden-bots/platform#46ef19dd46451cc2b9f12e497bbe0a08d84d486b"
 dependencies = [
  "async-trait",
  "aws-lc-rs",
@@ -7903,7 +7902,7 @@ dependencies = [
 [[package]]
 name = "zayden-core"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/platform#90801967624aef578ad329d7bcd7b964bb61b25b"
+source = "git+https://github.com/zayden-bots/platform#46ef19dd46451cc2b9f12e497bbe0a08d84d486b"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -7927,7 +7926,7 @@ dependencies = [
 [[package]]
 name = "zayden-graphics"
 version = "1.0.0"
-source = "git+https://github.com/zayden-bots/platform#90801967624aef578ad329d7bcd7b964bb61b25b"
+source = "git+https://github.com/zayden-bots/platform#46ef19dd46451cc2b9f12e497bbe0a08d84d486b"
 dependencies = [
  "png",
  "resvg",
@@ -8040,34 +8039,6 @@ name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
-
-[[package]]
-name = "zstd"
-version = "0.14.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad5020ab8f27bfc0024ad0a07aed6bf022a16208f479686fbed4fdd0c85eb0b3"
-dependencies = [
- "zstd-safe",
-]
-
-[[package]]
-name = "zstd-safe"
-version = "8.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a9ea9cc2576c2fcc104e9cec04f46e3ede564f4fbc206831e4ef7e859a4140d"
-dependencies = [
- "zstd-sys",
-]
-
-[[package]]
-name = "zstd-sys"
-version = "2.1.3+zstd.1.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f729a06d0257428fd9d997ac8db7e1407bd0262ab016b085b36bc52957c0052d"
-dependencies = [
- "cc",
- "pkg-config",
-]
 
 [[package]]
 name = "zune-core"
