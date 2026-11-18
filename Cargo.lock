@@ -1195,13 +1195,14 @@ dependencies = [
 [[package]]
 name = "deadlock-api"
 version = "0.1.0"
-source = "git+https://github.com/ViridianLink/deadlock-api.git?branch=main#828430e787816218d19d4cfedf85a2f79b955b6e"
+source = "git+https://github.com/ViridianLink/deadlock-api.git?branch=main#a3ffde3ad6643584d88706c8e50983858d9730f5"
 dependencies = [
  "jiff 1.0.0",
  "reqwest 0.13.5",
  "serde",
  "serde_json",
  "tokio",
+ "url",
 ]
 
 [[package]]
@@ -6481,7 +6482,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -7882,7 +7883,7 @@ source = "git+https://github.com/zayden-bots/platform#46ef19dd46451cc2b9f12e497b
 dependencies = [
  "async-trait",
  "aws-lc-rs",
- "base64 0.23.1",
+ "base64 0.22.1",
  "jiff 1.0.0",
  "jiff-sqlx",
  "metrics",
@@ -7905,7 +7906,7 @@ version = "1.0.0"
 source = "git+https://github.com/zayden-bots/platform#46ef19dd46451cc2b9f12e497bbe0a08d84d486b"
 dependencies = [
  "async-trait",
- "base64 0.23.1",
+ "base64 0.22.1",
  "dashmap",
  "jiff 1.0.0",
  "jiff-cron",
