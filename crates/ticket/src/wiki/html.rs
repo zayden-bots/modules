@@ -1,4 +1,4 @@
-use htmd::element_handler::Handlers;
+use htmd::element_handler::{Context, Handlers};
 use htmd::options::{CodeBlockStyle, HeadingStyle, Options};
 use htmd::{Element, HtmlToMarkdown};
 
@@ -16,15 +16,15 @@ pub fn html_to_markdown(html: &str) -> Result<String, WikiError> {
         .skip_tags(vec!["script", "style"])
         .add_handler(
             vec!["block-tab"],
-            |handlers: &dyn Handlers, element: Element<'_>| {
+            |handlers: &dyn Handlers, element: &Element<'_>| {
                 let label = element
-                    .attrs
-                    .iter()
-                    .find(|attr| attr.name.local.as_ref() == "label")
-                    .map(|attr| attr.value.to_string())
+                    .node
+                    .attr("label")
+                    .map(|label| label.to_string())
                     .filter(|label| !label.trim().is_empty());
 
-                let content = handlers.walk_children(element.node).content;
+                let content =
+                    handlers.walk_children(element.node, Context::BLOCK).content;
                 let children = content.trim();
 
                 let text = label.map_or_else(

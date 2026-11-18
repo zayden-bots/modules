@@ -194,7 +194,7 @@ jiff-sqlx = { version = "*", default-features = false }
 reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 ego-tree = { version = "*", default-features = false }
 scraper = { version = "*", default-features = false }
-htmd = { version = "*", default-features = false }
+htmd = { version = "*", default-features = false, features = ["ego-tree"] }
 url = { version = "*", default-features = false }
 
 # -- Database
