@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE deadlock_report_waits\n        SET finished_at = $1, outcome = 'expired'\n        WHERE finished_at IS NULL AND expires_at <= $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5fc1459f99d0959fd8118e83adfef4ada7e5f3a3bbf7ef2dbebea3ed2c7e40c8"
+}

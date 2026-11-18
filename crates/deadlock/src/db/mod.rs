@@ -9,6 +9,7 @@ pub mod patches;
 pub mod players;
 pub mod proxy_cache;
 pub mod rank_snapshots;
+pub mod report_waits;
 pub mod snapshots;
 pub mod squad_channel;
 pub mod summary_channel;

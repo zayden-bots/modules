@@ -10,6 +10,7 @@ pub const RANK_SNAPSHOT_RETENTION: SignedDuration =
     SignedDuration::from_hours(24 * 180);
 pub const MATCH_RETENTION: SignedDuration = SignedDuration::from_hours(24 * 90);
 pub const POST_RETENTION: SignedDuration = SignedDuration::from_hours(24 * 90);
+pub const REPORT_WAIT_RETENTION: SignedDuration = SignedDuration::from_hours(24 * 7);
 pub const KEPT_SNAPSHOTS: i64 = 5;
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -20,6 +21,7 @@ pub struct GcOutcome {
     pub guild_posts: u64,
     pub briefings: u64,
     pub asset_snapshots: u64,
+    pub report_waits: u64,
 }
 
 pub async fn run(pool: &PgPool, now: Timestamp) -> sqlx::Result<GcOutcome> {
@@ -38,5 +40,7 @@ pub async fn run(pool: &PgPool, now: Timestamp) -> sqlx::Result<GcOutcome> {
         guild_posts: gc::prune_guild_posts(pool, before(POST_RETENTION)).await?,
         briefings: gc::prune_briefings(pool, before(POST_RETENTION)).await?,
         asset_snapshots: gc::prune_asset_snapshots(pool, KEPT_SNAPSHOTS).await?,
+        report_waits: gc::prune_report_waits(pool, before(REPORT_WAIT_RETENTION))
+            .await?,
     })
 }

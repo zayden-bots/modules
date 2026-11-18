@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM deadlock_report_waits WHERE account_id = $1 AND match_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "12f581120bbcdd8d432cf2b9af8644aa6b3dba50d57b1800b2b624bc15df75ca"
+}

@@ -130,6 +130,28 @@ pub async fn all(pool: &PgPool) -> sqlx::Result<Vec<PolledPlayer>> {
     Ok(records.into_iter().filter_map(PlayerRecord::into_player).collect())
 }
 
+pub async fn get(
+    pool: &PgPool,
+    account_id: u32,
+) -> sqlx::Result<Option<PolledPlayer>> {
+    let record = sqlx::query_as!(
+        PlayerRecord,
+        r#"
+        SELECT account_id,
+               discord_id,
+               seeded_at AS "seeded_at: jiff_sqlx::Timestamp",
+               streak
+        FROM deadlock_players
+        WHERE account_id = $1
+        "#,
+        i64::from(account_id)
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(record.and_then(PlayerRecord::into_player))
+}
+
 #[expect(
     trivial_casts,
     reason = "not a cast: `as T` is sqlx's bind-param type-override syntax, required because TIMESTAMPTZ has no built-in jiff mapping"

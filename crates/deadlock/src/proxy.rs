@@ -27,7 +27,7 @@ const ANALYTICS_TTL: Duration = Duration::from_hours(6);
 const BUILD_TTL: Duration = Duration::from_hours(6);
 const MATCH_TTL: Duration = Duration::from_hours(24 * 7);
 const MAX_WAIT: Duration = Duration::from_secs(2);
-const MAX_BODY_BYTES: usize = 16 * 1024 * 1024;
+pub const MAX_BODY_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProxyClass {

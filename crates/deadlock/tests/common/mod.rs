@@ -47,8 +47,13 @@ pub(crate) struct Mock {
 
 impl Mock {
     pub(crate) fn serve(&self, path: &str, reply: Reply) {
+        self.serve_target(path, reply);
+    }
+
+    /// `target` is the request path plus `?query`; it wins over a path-only route.
+    pub(crate) fn serve_target(&self, target: &str, reply: Reply) {
         if let Ok(mut routes) = self.routes.lock() {
-            routes.insert(path.to_owned(), reply);
+            routes.insert(target.to_owned(), reply);
         }
     }
 }
@@ -77,6 +82,10 @@ fn path_of(head: &str) -> &str {
         .unwrap_or_default()
 }
 
+fn target_of(head: &str) -> &str {
+    head.split_whitespace().nth(1).unwrap_or_default()
+}
+
 pub(crate) async fn spawn_mock(fallback: Reply) -> Option<Mock> {
     let listener = TcpListener::bind("127.0.0.1:0").await.ok()?;
     let base = format!("http://{}", listener.local_addr().ok()?);
@@ -94,6 +103,7 @@ pub(crate) async fn spawn_mock(fallback: Reply) -> Option<Mock> {
 
             let head = read_head(&mut socket).await;
             let path = head.as_deref().map_or("", path_of).to_owned();
+            let target = head.as_deref().map_or("", target_of).to_owned();
 
             if let Some(head) = head
                 && let Ok(mut recorded) = recorder.lock()
@@ -104,7 +114,12 @@ pub(crate) async fn spawn_mock(fallback: Reply) -> Option<Mock> {
             let response = table
                 .lock()
                 .ok()
-                .and_then(|table| table.get(&path).map(Reply::render))
+                .and_then(|table| {
+                    table
+                        .get(&target)
+                        .or_else(|| table.get(&path))
+                        .map(Reply::render)
+                })
                 .unwrap_or_else(|| fallback.clone());
 
             let _ = socket.write_all(response.as_bytes()).await;

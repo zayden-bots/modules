@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE deadlock_report_waits\n        SET finished_at = $3, outcome = $4, attempts = $5, salts_at = $6,\n            metadata_at = $7\n        WHERE account_id = $1 AND match_id = $2 AND finished_at IS NULL\n          AND next_attempt_at = $8\n        RETURNING match_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "match_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "deadlock_report_waits",
+            "name": "match_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Timestamptz",
+        "Text",
+        "Int4",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "304a7e7542ca031f038a6c7354a6469b9fa31972181226dd012de0d08c99b1e8"
+}

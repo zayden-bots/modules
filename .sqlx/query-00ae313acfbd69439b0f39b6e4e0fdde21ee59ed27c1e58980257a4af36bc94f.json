@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM deadlock_report_waits WHERE finished_at < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "00ae313acfbd69439b0f39b6e4e0fdde21ee59ed27c1e58980257a4af36bc94f"
+}

@@ -19,6 +19,7 @@ pub mod patch_kind;
 pub mod patch_watch;
 pub mod proxy;
 pub mod rank_poll;
+pub mod report_fetch;
 pub mod squad;
 pub mod squad_deliver;
 pub mod summary;

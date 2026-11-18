@@ -83,6 +83,24 @@ pub async fn prune_briefings(pool: &PgPool, before: Timestamp) -> sqlx::Result<u
     Ok(result.rows_affected())
 }
 
+#[expect(
+    trivial_casts,
+    reason = "not a cast: `as T` is sqlx's bind-param type-override syntax, required because TIMESTAMPTZ has no built-in jiff mapping"
+)]
+pub async fn prune_report_waits(
+    pool: &PgPool,
+    before: Timestamp,
+) -> sqlx::Result<u64> {
+    let result = sqlx::query!(
+        "DELETE FROM deadlock_report_waits WHERE finished_at < $1",
+        before.to_sqlx() as jiff_sqlx::Timestamp
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(result.rows_affected())
+}
+
 pub async fn prune_asset_snapshots(pool: &PgPool, keep: i64) -> sqlx::Result<u64> {
     let result = sqlx::query!(
         r#"

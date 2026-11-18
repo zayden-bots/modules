@@ -80,7 +80,7 @@ fn settle<T: Clone + Default>(
     }
 }
 
-async fn hero_averages(api: &DeadlockApi, hero_id: u32) -> HeroAverages {
+pub(crate) async fn hero_averages(api: &DeadlockApi, hero_id: u32) -> HeroAverages {
     let (curve, items, orders) = futures::join!(
         api.performance_curve(hero_id, Priority::Background),
         api.item_stats(hero_id, Priority::Background),
@@ -95,6 +95,20 @@ async fn hero_averages(api: &DeadlockApi, hero_id: u32) -> HeroAverages {
         most_played_order: analysis::ability_picks(&orders)
             .map(|picks| picks.most_played.abilities.clone()),
     }
+}
+
+pub(crate) async fn refresh_streak(
+    pool: &PgPool,
+    player: &PolledPlayer,
+) -> sqlx::Result<()> {
+    let streak = streak_from(
+        &matches::recent_results(pool, player.account_id, STREAK_HISTORY).await?,
+    );
+    if streak != player.streak {
+        players::set_streak(pool, player.account_id, streak).await?;
+    }
+
+    Ok(())
 }
 
 pub async fn poll(
@@ -175,13 +189,7 @@ pub async fn poll(
     }
 
     for tracked in by_account.values().filter(|p| changed.contains(&p.account_id)) {
-        let streak = streak_from(
-            &matches::recent_results(pool, tracked.account_id, STREAK_HISTORY)
-                .await?,
-        );
-        if streak != tracked.streak {
-            players::set_streak(pool, tracked.account_id, streak).await?;
-        }
+        refresh_streak(pool, tracked).await?;
     }
 
     let hero_ids: BTreeSet<u32> =

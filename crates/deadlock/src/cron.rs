@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 
-use deadlock_api::DeadlockApiError;
+use deadlock_api::{DeadlockApiError, DeadlockClient};
 use jiff::Timestamp;
 use sqlx::PgPool;
 use tracing::{debug, error, info, warn};
@@ -16,7 +16,8 @@ use crate::error::DeadlockError;
 use crate::match_poll::{self, PollMode, SummaryJob};
 use crate::patch_watch::{self, WatchOutcome};
 use crate::rank_poll::{self, SquadEvent};
-use crate::{gc, squad_deliver, tasks};
+use crate::report_fetch::SteamLedger;
+use crate::{gc, report_fetch, squad_deliver, tasks};
 
 #[derive(Debug, Default)]
 pub struct RunGuard(AtomicBool);
@@ -139,6 +140,59 @@ async fn summarize(
     match deliver(&cx, &api, jobs).await {
         Ok(outcome) => debug!(?outcome, "deadlock: match summaries delivered"),
         Err(e) => error!(error = ?e, "deadlock: failed to deliver match summaries"),
+    }
+}
+
+pub struct DeadlockReportCron;
+
+impl DeadlockReportCron {
+    pub fn cron_job(
+        api: Arc<DeadlockApi>,
+        client: Arc<DeadlockClient>,
+    ) -> WorkerJobResult {
+        let guard = Arc::new(RunGuard::default());
+        let ledger = Arc::new(SteamLedger::default());
+
+        WorkerJob::new("deadlock_report_fetch", "20 * * * * * *").map(|job| {
+            job.set_action(move |cx| {
+                let api = Arc::clone(&api);
+                let client = Arc::clone(&client);
+                let guard = Arc::clone(&guard);
+                let ledger = Arc::clone(&ledger);
+
+                async move {
+                    let Some(ticket) = guard.try_start() else {
+                        return;
+                    };
+
+                    match report_fetch::run(
+                        &client,
+                        &api,
+                        &cx.db,
+                        &ledger,
+                        Timestamp::now(),
+                    )
+                    .await
+                    {
+                        Ok((outcome, jobs)) => {
+                            if outcome.claimed == 0 && outcome.expired == 0 {
+                                debug!("deadlock: no report waits due");
+                            } else {
+                                info!(?outcome, "deadlock: report fetch finished");
+                            }
+
+                            if !jobs.is_empty() {
+                                tokio::spawn(summarize(ticket, cx, api, jobs));
+                            }
+                        },
+                        Err(e) if e.is_transient() => {
+                            warn!(error = %e, "deadlock: report fetch deferred, deadlock-api unavailable");
+                        },
+                        Err(e) => error!(error = ?e, "deadlock: report fetch failed"),
+                    }
+                }
+            })
+        })
     }
 }
 
