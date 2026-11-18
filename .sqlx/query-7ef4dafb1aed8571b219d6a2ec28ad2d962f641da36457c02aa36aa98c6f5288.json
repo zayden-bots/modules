@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO deadlock_user_settings (discord_id, match_fetch, opt_in_guild_id)\n        VALUES ($1, $2, $3)\n        ON CONFLICT (discord_id) DO UPDATE\n        SET match_fetch = EXCLUDED.match_fetch,\n            opt_in_guild_id = COALESCE(\n                EXCLUDED.opt_in_guild_id,\n                deadlock_user_settings.opt_in_guild_id\n            ),\n            updated_at = now()\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Bool",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7ef4dafb1aed8571b219d6a2ec28ad2d962f641da36457c02aa36aa98c6f5288"
+}

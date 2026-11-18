@@ -58,6 +58,45 @@ pub async fn set_patch_briefing(
     Ok(())
 }
 
+pub async fn match_fetch(pool: &PgPool, discord_id: i64) -> sqlx::Result<bool> {
+    let enabled = sqlx::query_scalar!(
+        "SELECT match_fetch FROM deadlock_user_settings WHERE discord_id = $1",
+        discord_id
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(enabled.unwrap_or(true))
+}
+
+pub async fn set_match_fetch(
+    pool: &PgPool,
+    discord_id: i64,
+    enabled: bool,
+    guild_id: Option<i64>,
+) -> sqlx::Result<()> {
+    sqlx::query!(
+        r#"
+        INSERT INTO deadlock_user_settings (discord_id, match_fetch, opt_in_guild_id)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (discord_id) DO UPDATE
+        SET match_fetch = EXCLUDED.match_fetch,
+            opt_in_guild_id = COALESCE(
+                EXCLUDED.opt_in_guild_id,
+                deadlock_user_settings.opt_in_guild_id
+            ),
+            updated_at = now()
+        "#,
+        discord_id,
+        enabled,
+        guild_id
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn set_dm_summaries(
     pool: &PgPool,
     discord_id: i64,
