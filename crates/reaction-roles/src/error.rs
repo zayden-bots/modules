@@ -11,7 +11,6 @@ pub enum ReactionRoleError {
     MissingGuildId,
     MissingUserId,
     InvalidMessageId(String),
-    UnsupportedEmoji(String),
     DuplicateMapping(String),
     Internal(String),
     ReactionConversionError(ReactionConversionError),
@@ -25,9 +24,6 @@ impl std::fmt::Display for ReactionRoleError {
             Self::MissingGuildId => CoreError::MissingGuildId.fmt(f),
             Self::MissingUserId => write!(f, "Reaction is missing user ID"),
             Self::InvalidMessageId(id) => write!(f, "Invalid message ID: {id}"),
-            Self::UnsupportedEmoji(emoji) => {
-                write!(f, "Unsupported emoji: {emoji}")
-            },
             Self::DuplicateMapping(emoji) => {
                 write!(f, "{emoji} is already mapped on that message")
             },
@@ -50,7 +46,6 @@ impl std::error::Error for ReactionRoleError {
             Self::MissingGuildId
             | Self::MissingUserId
             | Self::InvalidMessageId(_)
-            | Self::UnsupportedEmoji(_)
             | Self::DuplicateMapping(_)
             | Self::Internal(_) => None,
         }
@@ -67,7 +62,6 @@ impl Respond for ReactionRoleError {
             Self::MissingGuildId
             | Self::MissingUserId
             | Self::InvalidMessageId(_)
-            | Self::UnsupportedEmoji(_)
             | Self::DuplicateMapping(_) => Some(Cow::Owned(self.to_string())),
         }
     }
