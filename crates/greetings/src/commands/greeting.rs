@@ -77,11 +77,11 @@ pub async fn run(cx: &InvocationCtx<'_>, store: &GreetingsStore) -> Result<()> {
     let (name, sub_options) = parse_subcommand(interaction.data.options())?;
     let kind = GreetingKind::parse(name)?;
 
+    interaction.defer(http).await?;
+
     let config = GreetingsSettings::get(store, guild_id).await?;
 
     check_cooldown(cx, &config).await?;
-
-    interaction.defer(http).await?;
 
     let mut options = parse_options(sub_options);
 
